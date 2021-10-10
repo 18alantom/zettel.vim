@@ -48,17 +48,28 @@ let s:tag_file_headers = [
 \]
 
 let s:tagsloc_path = g:zettel_tags_root . "/" . "tagsloc.txt"
-
+let s:tagslink_path = g:zettel_tags_root . "/" . "tagslink.txt"
 
 " Helper Functions
 function s:GetAbsolutePath(path)
-  " Convert a relative (./, ../) path to absolute
+  " Convert a relative (~/, ./, ../) path to absolute
+  let l:cwd = expand("%:p:h")
+  let l:cwdparts = split(l:cwd, "/")
+  let l:pathparts = split(a:path, "/")
+
   if a:path[0] == "/"
     return a:path
+  elseif a:path[:1] == "~/"
+    return $HOME .. a:path[1:]
+  elseif a:path[:2] == "../"
+    return "/" .. join(l:cwdparts[:-2] + l:pathparts[1:], "/")
+  elseif a:path[:1] == "./"
+    return "/" .. join(l:cwdparts + l:pathparts[1:], "/")
+  elseif a:path[0] != "/"
+    return "/" .. join(l:cwdparts + l:pathparts, "/")
+  else
+    echoerr s:plugin_name .. " : incorect path '" .. a:path .. "'"
   endif
-  let l:pathparts = split(a:path, "/")
-  let l:root = split(expand("%:p:h"), "/")[0:-len(l:pathparts[0])]
-  return "/" . join(root + pathparts[1:], "/")
 endfunction
 
 function s:AddPathToTags(path) abort
@@ -186,7 +197,7 @@ function s:GetDefaultOverrides(args) abort
   return l:default_overrides
 endfunction
 
-function s:GetTagLoc() abort
+function s:GetCurrentPosition() abort
   let [l:line, l:col] = getpos(".")[1:-2]
   let l:abs_file_path = expand("%:p")
 
@@ -279,7 +290,7 @@ function! zettel#insertTag(...) abort
   " - a.000[1:] : {fieldname}={fieldvalue}
   let l:tags_string = s:GetTagsString(a:000)
   let [l:tag, l:tags_path] = s:GetTagAndTagsFile(l:tags_string)
-  let l:tag_loc = s:GetTagLoc() " [line, col, filename]
+  let l:tag_loc = s:GetCurrentPosition() " [line, col, filename]
   let l:default_overrides = s:GetDefaultOverrides(a:000)
   let l:tag_line = s:GetTagLine(l:tag, l:tag_loc, l:default_overrides)
   call s:InsertTagLine(l:tag_line, l:tags_path)
@@ -290,4 +301,166 @@ function! zettel#insertTag(...) abort
   " get the line location in the file line number or literal line location? 
   " (check how marks are stored)
   " write line name, location and key values to the file.
+endfunction
+
+function s:FilterFileReadable(i, path)
+  return filereadable(a:path)
+endfunction
+
+function s:MapGetAbsolutePath(i, path)
+  return s:GetAbsolutePath(a:path)
+endfunction
+
+function s:GetUniqueCopy(list)
+  " uniq wasn't working in some cases
+  let l:uniquelist = []
+  for i in a:list
+    if index(l:uniquelist, i) == -1
+      call add(l:uniquelist, i)
+    endif
+  endfor
+  return l:uniquelist
+endfunction
+
+function s:GetListOfAllTags() abort
+  " Will return list of all taglines
+  " tagline will have tagpath prepended
+  let l:tags = map(split(&tags, ","), function('s:MapGetAbsolutePath'))
+  let l:tags = filter(l:tags, function('s:FilterFileReadable'))
+  let l:tags = s:GetUniqueCopy(l:tags)
+  let l:tag_lines = []
+  let l:header_suffix = "!_TAG_"
+  let l:suffix_len = len(l:header_suffix)
+  for tagfile in l:tags
+    for line in readfile(l:tagfile)
+      if (line == "") ||
+        \ (len(line) < l:suffix_len) ||
+        \ (line[:l:suffix_len - 1] == l:header_suffix)
+        continue
+      endif
+      call add(l:tag_lines, tagfile .. "\t" .. line)
+    endfor
+  endfor
+  return l:tag_lines
+endfunction
+
+function s:GetPadded(str, amt)
+  return a:str .. repeat(' ', a:amt - len(a:str))
+endfunction
+
+function s:RemoveZettelRootFromPath(path)
+  " Removes g:zettel_tags_root from the path
+  let l:rootlen = len(g:zettel_tags_root)
+  let l:pathstub = a:path[l:rootlen:]
+
+  " If root matches with zettel_tags_root, remove root
+  if a:path[:l:rootlen - 1] == g:zettel_tags_root && l:pathstub[0] == "/"
+    return l:pathstub[1:]
+  endif
+
+  return a:path
+endfunction
+
+function s:MapGetFormattedTagLine(i, tagline)
+  let l:tagparts = split(a:tagline, "\t")
+  let l:tagpath = s:GetPadded(s:RemoveZettelRootFromPath(l:tagparts[0]), 48)
+  let l:tagname = s:GetPadded(l:tagparts[1], 24)
+  let l:taglocation = l:tagparts[3]
+  let l:lineno = matchstr(l:taglocation, '\(\d\+\)')
+  let l:filepath = l:tagparts[2]
+  return l:tagname .. "  " .. l:tagpath .. repeat(" ", 4) .. l:filepath .. repeat(" ", 4) .. l:lineno .. repeat(" ", 4) .. l:taglocation
+endfunction
+
+function s:GetTagLink(tagline)
+  " TODO: complete this function
+endfunction
+
+function s:GetFormattedTagLink(taglink)
+  " TODO: complete this function
+endfunction
+
+function s:InsertTagLink(taglink)
+  " TODO: complete this function
+endfunction
+
+function s:InsertLinkIntoLinkFile(taglink)
+  " format: 'pathtofilewithlink {TAB} linkloc {TAB} taglink
+  " taglink contains tagfile path and the the tagname
+  " just needs to be destructured
+  let [l:line, l:col, l:linkpath] = s:GGetTagLocetCurrentPosition() " [line, col, filename]
+  let l:linkloc = "call cursor(" .. l:line .. "," .. l:col .. ")"
+  let l:linkline = l:linkpath .. "\t" .. l:linkloc .. "\t" .. a:taglink
+  writefile([l:linkline], s:tagslink_path, "a")
+endfunction
+
+function s:HandleTagSelection(tagline) abort
+  " Sink function for fzf, this will insert the tagline
+  " insert tag into file
+  " insert tag into taglink file
+  let l:taglink = s:GetTagLink(l:tagline)
+  let l:formatted_taglink = s:GetFormattedTagLink(l:taglink)
+  call s:InsertTagLink(l:formatted_taglink)
+  call s:InsertLinkIntoLinkFile(l:taglink)
+endfunction
+
+function s:ThrowErrorIfNoFZF() abort
+  let l:has_fzf = exists("g:loaded_fzf") && g:loaded_fzf
+  if !l:has_fzf
+    echoerr s:plugin_name .. " : fzf not found"
+  endif
+endfunction
+
+function! zettel#insertTagLink() abort
+  " Function that inserts a taglink at the current cursor position
+  " - a.000[0] : tagfile/tagname | tagname
+  call s:ThrowErrorIfNoFZF()
+
+  let l:preview_cmd = "cat -n {3}"
+  if executable("bat")
+    let l:preview_cmd = "bat --color=always --highlight-line={4} {3}"
+  endif
+
+  let l:tag_lines = s:GetListOfAllTags()
+  call fzf#run(
+    \fzf#wrap(
+      \{
+        \'source': map(l:tag_lines, function('s:MapGetFormattedTagLine')),
+        \'options': '--no-sort --preview="echo tagname={1} tagfile={2};'.. l:preview_cmd ..'" --preview-window=up,+{4},~1 --prompt "Tag>"',
+        \'sink' : function('s:HandleTagSelection')
+      \}
+    \)
+  \)
+endfunction
+
+function! zettel#jumpToTag() abort
+  call s:ThrowErrorIfNoFZF()
+
+  let l:preview_cmd = "cat -n {3}"
+  if executable("bat")
+    let l:preview_cmd = "bat --color=always --highlight-line={4} {3}"
+  endif
+
+  let l:tag_lines = s:GetListOfAllTags()
+  call fzf#run(
+    \fzf#wrap(
+      \{
+        \'source': map(l:tag_lines, function('s:MapGetFormattedTagLine')),
+        \'options': '--no-sort --preview="echo tagname={1} tagfile={2};'.. l:preview_cmd ..'" --preview-window=up,+{4},~1 --prompt "Tag>"',
+        \'sink' : function('s:HandleTagJump')
+      \}
+    \)
+  \)
+endfunction
+
+function s:HandleTagJump(tagline)
+  let l:parts = filter(split(a:tagline, "  "), "len(v:val)")
+  let l:file_path = l:parts[2]
+  let l:loc_command = l:parts[4][:-5]
+  call s:JumpToTag(l:file_path, l:loc_command)
+endfunction
+
+function s:JumpToTag(file_path, loc_command)
+  " TODO: alter tagstack
+  execute "edit " .. a:file_path
+  execute a:loc_command
 endfunction

@@ -7,8 +7,7 @@ call zettel#initialize()
 
 " Commands
 command! -nargs=+ ZettelCreateNewTagFile
-  \call zettel#createNewTagFile(<f-args>)
-nnoremap <unique> <leader>zn :ZettelCreateNewTagFile<space>
+  \ call zettel#createNewTagFile(<f-args>)
 " Creates a new tags file
 " - format: ZettelCreateNewTagFile {tagfile_name|pathtotagfile/tagfiel_name} [{field}={value}]
 " - If relative or absolute paths are used g:zettel_tags_root is ignored
@@ -21,11 +20,8 @@ nnoremap <unique> <leader>zn :ZettelCreateNewTagFile<space>
 " - 'tagfile' is created at ./temp
 " - default togit value for this file is set to 0
 
-command! -nargs=* -complete=customlist,s:CompletionInsertTag ZettelInsertTag
-  \call zettel#insertTag(<f-args>)
-nnoremap <unique> <leader>zi :ZettelInsertTag<space>
-" TODO: this command is incomplete
-" TODO: add tab complete to prefix the tag files
+command! -nargs=* -complete=customlist,s:GetCompletionInsertTag ZettelInsertTag
+  \ call zettel#insertTag(<f-args>)
 " Inserts a tag into the specified file
 " - format: ZettelInsertTag [{tagname|tagspath/tagname}] [{field}={value}]
 " - if no argument is supplied the current line is used as the tag name
@@ -49,14 +45,23 @@ nnoremap <unique> <leader>zi :ZettelInsertTag<space>
 " example: 'ZettelInsertTag'
 " - will insert a tag with it's name as the current line under the cursor into
 "   'g:zettel_tags_root/tags'
+function s:GetTagName(i, tagline)
+  return split(a:tagline, "\t")[0]
+endfunction
+
+command! ZettelInsertTagLink call zettel#insertTagLink()
+command! ZettelJumpToTag call zettel#jumpToTag()
+" Inserts a taglink
 
 if !exists("g:zettel_tags_prevent_default_bindings")
-  nnoremap <leader>zc :ZettelCreateNewTagFile<space>
-  nnoremap <leader>zi :ZettelInsertTag<space>
+  nnoremap <unique> <leader>zc :ZettelCreateNewTagFile<space>
+  nnoremap <unique> <leader>zi :ZettelInsertTag<space>
+  nnoremap <unique> <leader>zl :ZettelInsertTagLink<cr>
+  nnoremap <unique> <leader>zj :ZettelJumpToTag<cr>
 endif
 
 " Completion Functions
-function s:CompletionInsertTag(arg_lead, cmd_line, cursor_pos)
+function s:GetCompletionInsertTag(arg_lead, cmd_line, cursor_pos)
   " TODO: Add suggestions with word under cursor suffixed
   " TODO: Add suggestions with '@' prefixed for line entry
   let l:tags = []
