@@ -65,7 +65,7 @@ deletion.
 List of global variables used by `zettel.vim` that can be changed to override default
 behaviour.
 - `g:zettel_tags_root` — Location where all the tagfiles are stored. Default:
-    `$HOME/zettel`
+    `$HOME/.zettel`
 - `g:zettel_tags_prevent_default_bindings` — Setting this will prevent default
     keybindings from being set. Default: 0
 - `g:zettel_tags_unscoped_tagfile_name` — Location of tags where a tag file isn't
