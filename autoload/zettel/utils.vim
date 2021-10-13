@@ -60,6 +60,12 @@ function zettel#utils#getCurrentPosition() abort
 endfunction
 
 
+" Path helpers
+function zettel#utils#getScrubbedRelativePath(path)
+  " Removes relativeness of a path, returns stub
+  return substitute(a:path, '[.~]\+/', "", "")
+endfunction
+
 function zettel#utils#removeZettelRootFromPath(path)
   " Removes g:zettel_tags_root from the path
   " if it matches.
@@ -77,6 +83,8 @@ endfunction
 
 function zettel#utils#getAbsolutePath(path, prepend_root=0)
   " Convert a relative (~/, ./, ../) path to absolute
+  " If prepend_root prepends g:zettel_tags_root to paths
+  " of the form 'path/to/file'
   let l:cwd = expand("%:p:h")
   let l:cwdparts = split(l:cwd, "/")
   let l:pathparts = split(a:path, "/")
@@ -90,8 +98,10 @@ function zettel#utils#getAbsolutePath(path, prepend_root=0)
   elseif a:path[:1] == "./"
     return "/" .. join(l:cwdparts + l:pathparts[1:], "/")
   elseif a:path[0] != "/"
-    if a:prepend_root
+    if a:prepend_root && len(a:path)
       return g:zettel_tags_root .. "/" .. a:path
+    elseif a:prepend_root
+      return g:zettel_tags_root
     endif
     return "/" .. join(l:cwdparts + l:pathparts, "/")
   else

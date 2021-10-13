@@ -26,7 +26,7 @@ endif
 let s:plugin_name = "zettel.vim"
 
 let s:field_defaults = {
-  \"togit" : ["!_TAG_TOGIT", g:zettel_tags_default_field_togit]
+  \"togit" : g:zettel_tags_default_field_togit
 \}
 
 let s:tag_file_headers = [
@@ -42,13 +42,15 @@ let s:tagslink_path = g:zettel_tags_root . "/" . "tagslink.txt"
 
 
 
-function s:AddPathToTags(path) abort
-  " Add a path to &tags
-  let l:tags = split(&tags, ",")
-  if index(l:tags, a:path) == -1
-    call add(l:tags, a:path)
-    let &tags = join(l:tags, ",")
+" Functions
+function s:LoadTagsFromTagsloc() abort
+  " Load tags into &tags when vim opens, if it doesn't exist, create one
+  if !filereadable(s:tagsloc_path)
+    call s:WriteTagsToTagsloc()
+    return
   endif
+
+  let &tags = join(readfile(s:tagsloc_path), ",")
 endfunction
 
 
@@ -73,38 +75,69 @@ function s:WriteTagsToTagsloc() abort
 endfunction
 
 
-function s:LoadTagsFromTagsloc() abort
-  " Load tags into &tags when vim opens, if it doesn't exist, create one
-  if !filereadable(s:tagsloc_path)
-    call s:WriteTagsToTagsloc()
-    return
+function s:AddPathToTags(path) abort
+  " Add a path to &tags
+  let l:tags = split(&tags, ",")
+  if index(l:tags, a:path) == -1
+    call add(l:tags, a:path)
+    let &tags = join(l:tags, ",")
   endif
-
-  let &tags = join(readfile(s:tagsloc_path), ",")
 endfunction
 
 
-function s:GetTagFilePath(tags_path)
-  " tag_file
-  " - just the suffix, example : 'Desktop/code'
-  " - will return the absolute path
+function s:GetTagFieldHeaders(default_overrides) abort
+  " Returns tagfield headerlines, allows for
+  " arbitary field, values in the header but
+  " they are uppercased.
+  "
+  " default_overrides : 
+  " - dictionary to override the tag field defaults
+  " - example : { 'togit' : 0 }
+  let l:tag_field_headers = []
+  let l:tag_field_suffix = "!_TAG_FIELD_"
+  let l:field_values = copy(s:field_defaults)
 
-  let l:path_parts = split(a:tags_path, "/")
-  let l:tagfile_name = trim(l:path_parts[-1])
+  call extend(l:field_values, a:default_overrides)
 
-  if a:tags_path =~# '^[.]\{0,2}[/]'
-    let l:tagfile_path = zettel#utils#getAbsolutePath(trim(join(path_parts[0:-2], "/")))
-  else
-    let l:tagfile_path = trim(join([g:zettel_tags_root] + path_parts[0:-2], "/"))
-  endif
+  for item in items(l:field_values)
+    let [l:field, l:value] = item
+    let l:header_line = l:tag_field_suffix .. toupper(l:field) .. " " .. l:value
+    call add(l:tag_field_headers, l:header_line)
+  endfor
 
-  let l:abs_path = l:tagfile_path . "/" . l:tagfile_name
-  return [l:abs_path, l:tagfile_path, l:tagfile_name]
+  return l:tag_field_headers
 endfunction
 
 
-function s:CreateTagFile(tags_path, default_overrides = {}, exist_err = 1) abort
-  " tags_path
+function s:GetTagFilePath(stub_path_to_tagfile)
+  " stub_path_to_tagfile
+  " - just the suffix, example : 'folder0/folder1/tagfile'
+  " 
+  " Return
+  " l:abs_path_to_tagfile
+  " - abs path to the tagfile, example: '/Users/blah/.zettel/folder0/folder1/tagfile'
+  "
+  " l:abs_path_to_tagdir
+  " - abs path to dir with tagfile, example: '/Users/blah/.zettel/folder0/folder1'
+  "
+  " l:tagfile_name
+  " - last part of tags_path taken as name, example: 'tagfile'
+  let l:stub_path_parts = split(a:stub_path_to_tagfile, "/")
+  let l:stub_path_to_tagdir = trim(join(stub_path_parts[0:-2], "/"))
+  let l:stub_path_to_tagdir = zettel#utils#getScrubbedStr(l:stub_path_to_tagdir)
+  let l:abs_path_to_tagdir = zettel#utils#getAbsolutePath(l:stub_path_to_tagdir, 1)
+  let l:tagfile_name = trim(l:stub_path_parts[-1])
+  let l:abs_path_to_tagfile = join([l:abs_path_to_tagdir, l:tagfile_name], "/")
+  return [l:abs_path_to_tagfile, l:abs_path_to_tagdir, l:tagfile_name]
+endfunction
+
+
+function s:CreateTagFile(stub_path_to_tagfile, default_overrides = {}, exist_err = 1) abort
+  " Will create a tagfile at passed stub path prepended by
+  " g:zettel_tags_root add its absolute path to &tags, tagloc.txt
+  " and return it.
+  "
+  " stub_path_to_tagfile
   " - path stub to the tag file; g:zettel_tags_root will be
   "   prepended to it unless it's relative (./, ../)
   " - example : 'code/pytags'
@@ -115,48 +148,30 @@ function s:CreateTagFile(tags_path, default_overrides = {}, exist_err = 1) abort
   "
   " exist_err
   " - show an error if the file exists
+  let l:stub_path_to_tagfile = zettel#utils#getScrubbedRelativePath(a:stub_path_to_tagfile)
+  let [l:abs_path_to_tagfile, l:abs_path_to_tagdir, l:tagfile_name] = s:GetTagFilePath(l:stub_path_to_tagfile)
 
-  let [l:abs_path, l:tagfile_path, l:tagfile_name] = s:GetTagFilePath(a:tags_path)
-
-  call mkdir(tagfile_path, "p")
-  if filereadable(l:abs_path)
+  call mkdir(l:abs_path_to_tagdir, "p")
+  if filereadable(l:abs_path_to_tagfile)
     if !a:exist_err
-      return l:abs_path
+      return l:abs_path_to_tagfile
     endif
 
     echoerr s:plugin_name . " : Tagfile '"  . l:tagfile_name
-      \. "' already exists at '" . l:tagfile_path . "'."
+      \. "' already exists at '" . l:abs_path_to_tagdir . "'."
   else
-    call writefile(s:tag_file_headers, l:abs_path)
+    call writefile(s:tag_file_headers, l:abs_path_to_tagfile)
 
     " Apply field default headers
     let l:tag_file_field_headers = s:GetTagFieldHeaders(a:default_overrides)
-    call writefile(l:tag_file_field_headers, l:abs_path, "a")
-    call s:AddPathToTags(l:abs_path)
+    call writefile(l:tag_file_field_headers, l:abs_path_to_tagfile, "a")
+    call s:AddPathToTags(l:abs_path_to_tagfile)
     call s:WriteTagsToTagsloc()
 
     echo s:plugin_name . " : New tagfile '" . l:tagfile_name
-      \. "' created at '" . l:tagfile_path . "'."
+      \. "' created at '" . l:abs_path_to_tagdir . "'."
   endif
-  return l:abs_path
-endfunction
-
-
-function s:GetTagFieldHeaders(default_overrides) abort
-  " default_overrides : 
-  " - dictionary to override the tag field defaults
-  " - example : { 'togit' : 0 }
-  let l:tag_field_headers = []
-
-  for k in keys(s:field_defaults)
-    let [l:field_template, l:field_default] = s:field_defaults[k]
-    if has_key(a:default_overrides, k)
-      let l:field_default = a:default_overrides[k]
-    endif
-    call add(l:tag_field_headers, l:field_template . " " . l:field_default)
-  endfor
-
-  return l:tag_field_headers
+  return l:abs_path_to_tagfile
 endfunction
 
 
@@ -186,18 +201,18 @@ function s:GetCurrentPosition() abort
 endfunction
 
 
-function s:InsertTagLine(tag_line, tags_path) abort
+function s:InsertTagLine(tag_line, stub_path_to_tagfile) abort
   " Will create tagfile if it doesn't exist
-  let l:abs_path = s:CreateTagFile(a:tags_path, {}, 0)
-  call writefile([a:tag_line], l:abs_path, "a")
+  let l:abs_path_to_tagfile = s:CreateTagFile(a:stub_path_to_tagfile, {}, 0)
+  call writefile([a:tag_line], l:abs_path_to_tagfile, "a")
 endfunction
 
 
-function s:GetTagLine(tag, tag_loc, default_overrides) abort
-  let [l:line, l:col, l:abs_file_path] = a:tag_loc
+function s:GetTagLine(tagname, position, default_overrides) abort
+  let [l:line, l:col, l:abs_file_path] = a:position
   " tagname {TAB} file path {TAB} tagaddress|;" {field}
   let l:tagaddress_and_term = "call cursor(" . l:line . "," . l:col . ')|;"'
-  let l:tagline = join([a:tag, l:abs_file_path, l:tagaddress_and_term], "\t")
+  let l:tagline = join([a:tagname, l:abs_file_path, l:tagaddress_and_term], "\t")
 
   for k in keys(a:default_overrides)
     let l:field = k . ":" . a:default_overrides[k]
@@ -208,43 +223,48 @@ function s:GetTagLine(tag, tag_loc, default_overrides) abort
 endfunction
 
 
-function s:GetTagAndTagsFile(tags_string)
-  let l:tag = getline(".")
-  let l:tag_file = g:zettel_tags_unscoped_tagfile_name
+function s:GetTagNameAndTagFileStub(tag_path)
+  let l:tagname = getline(".")
+  let l:stub_path_to_tagfile = g:zettel_tags_unscoped_tagfile_name
 
-  if a:tags_string=~#"^@"
-    let l:tag_file = a:tags_string[1:]
-  elseif len(a:tags_string) > 0
-    let l:temp = split(a:tags_string, "/")
-    let l:tag = l:temp[-1]
-    if len(l:temp[:-2]) > 0
-      let l:tag_file = join(l:temp[:-2], "/")
+  if a:tag_path=~#"^@"
+    let l:stub_path_to_tagfile = zettel#utils#getScrubbedRelativePath(a:tag_path[1:])
+  elseif len(a:tag_path) > 0
+    let l:tag_path = zettel#utils#getScrubbedRelativePath(a:tag_path)
+    let l:parts = split(l:tag_path, "/")
+    let l:tagname = l:parts[-1]
+    if len(l:parts[:-2]) > 0
+      let l:stub_path_to_tagfile = join(l:parts[:-2], "/")
     endif
   endif
 
   return [
-        \zettel#utils#getScrubbedStr(l:tag),
-        \zettel#utils#getScrubbedStr(l:tag_file)
+        \zettel#utils#getScrubbedStr(l:tagname),
+        \zettel#utils#getScrubbedStr(l:stub_path_to_tagfile)
   \]
 endfunction
 
 
-function s:GetTagsString(args)
-  let l:tags_string = ""
+function s:GetTagPath(args)
+  " Returns tag_path i.e. 'folder/tagfile/tagname'
+  " from arglist
+  let l:tag_path = ""
   for arg in a:args
     if arg=~#'='
       continue
     endif
-    let l:tags_string = arg
+    let l:tag_path = arg
   endfor
-  return l:tags_string
+  return l:tag_path
 endfunction
 
 
 function s:GetListOfAllTags(with_line_number=0) abort
   " Will return list of all taglines
   " tagline will have tagpath prepended
-  let l:tags = map(split(&tags, ","), "zettel#utils#getAbsolutePath(v:val)")
+	" TODO: don't list tags not in zettel root
+  let l:tags = map(split(&tags, ","), "zettel#utils#getScrubbedRelativePath(v:val)")
+  let l:tags = map(l:tags, "zettel#utils#getAbsolutePath(v:val)")
   let l:tags = filter(l:tags, "filereadable(v:val)")
   let l:tags = zettel#utils#getUniqueItems(l:tags)
   let l:tag_lines = []
@@ -322,19 +342,31 @@ endfunction
 
 function s:HandleTagJump(tagline)
   let l:parts = zettel#utils#getSplitLine(a:tagline, "  ")
-  let l:file_path = l:parts[2]
+  let l:tagname = l:parts[0]
+  let l:stub_path_to_tagfile = l:parts[2]
   let l:loc_command = l:parts[4][:-4]
-  call s:UpdateTagStack()
-  call s:JumpToTag(l:file_path, l:loc_command)
+  let [l:winid, l:tagstack] = s:GetTagStackUpdateDetails(l:tagname)
+  let l:jump_successful = s:JumpToTag(l:stub_path_to_tagfile, l:loc_command)
+  if l:jump_successful && &tagstack
+    call settagstack(l:winid, l:tagstack, "a")
+  endif
 endfunction
 
 
-function s:UpdateTagStack()
+function s:GetTagStackUpdateDetails(tagname)
+	let l:position = [bufnr()] + getcurpos()[1:]
+	let l:item = {'bufnr': l:position[0], 'from': l:position, 'tagname': a:tagname}
+  let l:winid = win_getid()
+  let l:tagstack = gettagstack(l:winid)
+  let l:tagstack['items'] = [l:item]
+  return [l:winid, l:tagstack]
 endfunction
 
-function s:JumpToTag(file_path, loc_command)
+
+function s:JumpToTag(file_path, loc_command) abort
   execute "edit " .. a:file_path
   execute a:loc_command
+  return 1
 endfunction
 
 
@@ -389,13 +421,13 @@ endfunction
 
 " Autoload functions called by user commands
 function! zettel#createNewTagFile(...) abort
-  " Shim function between a command and s:CreateTagFile
+  " Creates a new tagfile with given fields at given path
   " - a.000[0]  : path/to/tagfile | tagfile
   " - a.000[1:] : {fieldname}={fieldvalue}
   " eg: ['/py/pytags', 'togit=0']
-  let l:tags_path = a:000[0]
+  let l:stub_path_to_tagfile = a:000[0]
   let l:default_overrides = s:GetDefaultOverrides(a:000)
-  call s:CreateTagFile(l:tags_path, l:default_overrides)
+  call s:CreateTagFile(l:stub_path_to_tagfile, l:default_overrides)
 endfunction
 
 
@@ -403,12 +435,12 @@ function! zettel#insertTag(...) abort
   " Function that inserts a tag into a tag file
   " - a.000[0]  : @path/to/tagfile | tagfile/tagname | tagname
   " - a.000[1:] : {fieldname}={fieldvalue}
-  let l:tags_string = s:GetTagsString(a:000)
-  let [l:tag, l:tags_path] = s:GetTagAndTagsFile(l:tags_string)
-  let l:tag_loc = s:GetCurrentPosition() " [line, col, filename]
+  let l:tag_path = s:GetTagPath(a:000)
+  let [l:tagname, l:stub_path_to_tagfile] = s:GetTagNameAndTagFileStub(l:tag_path)
+  let l:position = s:GetCurrentPosition() " [line, col, filename]
   let l:default_overrides = s:GetDefaultOverrides(a:000)
-  let l:tag_line = s:GetTagLine(l:tag, l:tag_loc, l:default_overrides)
-  call s:InsertTagLine(l:tag_line, l:tags_path)
+  let l:tag_line = s:GetTagLine(l:tagname, l:position, l:default_overrides)
+  call s:InsertTagLine(l:tag_line, l:stub_path_to_tagfile)
 endfunction
 
 
