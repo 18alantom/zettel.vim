@@ -16,8 +16,8 @@ command! -nargs=+ ZettelCreateNewTagFile
   \ call zettel#createNewTagFile(<f-args>)
 command! -nargs=* -complete=customlist,s:GetCompletionInsertTag ZettelInsertTag
   \ call zettel#insertTag(<f-args>)
-command! ZettelInsertTagLink call zettel#insertTagLink()
 command! ZettelJumpToTag call zettel#jumpToTag()
+command! ZettelInsertTagLink call zettel#insertTagLink()
 command! ZettelDeleteTag call zettel#deleteTag()
 
 
@@ -25,8 +25,8 @@ command! ZettelDeleteTag call zettel#deleteTag()
 if !exists("g:zettel_tags_prevent_default_bindings")
   nnoremap <unique> <leader>zc :ZettelCreateNewTagFile<space>
   nnoremap <unique> <leader>zi :ZettelInsertTag<space>
-  nnoremap <unique> <leader>zl :ZettelInsertTagLink<cr>
   nnoremap <unique> <leader>zj :ZettelJumpToTag<cr>
+  nnoremap <unique> <leader>zl :ZettelInsertTagLink<cr>
   nnoremap <unique> <leader>zd :ZettelDeleteTag<cr>
 endif
 

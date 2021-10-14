@@ -70,6 +70,7 @@ function zettel#utils#getScrubbedRelativePath(path)
   return substitute(a:path, '[.~]\+/', "", "")
 endfunction
 
+
 function zettel#utils#removeZettelRootFromPath(path)
   " Removes g:zettel_tags_root from the path
   " if it matches.

@@ -21,6 +21,10 @@ if !exists("g:zettel_tags_default_field_togit")
   let g:zettel_tags_default_field_togit = 1
 endif
 
+if !exists("g:zettel_tags_taglink_prefix")
+	let g:zettel_tags_taglink_prefix = "z://"
+endif
+
 
 " Tag Headers and Meta Data
 let s:plugin_name = "zettel.vim"
@@ -311,7 +315,7 @@ function s:GetTagStackUpdateDetails(tagname)
 endfunction
 
 
-function s:JumpToTag(abs_path_to_file, loc_command) abort
+function s:JumpToLocation(abs_path_to_file, loc_command) abort
   execute "edit " .. a:abs_path_to_file
   execute a:loc_command
   return 1
@@ -328,40 +332,6 @@ function s:MapGetFormattedTagLineForDeletion(i, tagline)
   let l:filepath = l:tagparts[3]
   return l:tagname .. "  " .. l:taglineno .. "  " .. l:tagpath .. repeat(" ", 4) .. l:filepath .. repeat(" ", 4) .. l:lineno
 endfunction
-
-
-" Autoload functions called from plugin/zettel.vim
-function! zettel#initialize() abort
-  call mkdir(g:zettel_tags_root, "p")
-  call s:LoadTagsFromTagsloc()
-  call s:CreateTagFile(g:zettel_tags_unscoped_tagfile_name, {}, 0)
-endfunction
-
-
-" Autoload functions called by user commands
-function! zettel#createNewTagFile(...) abort
-  " Creates a new tagfile with given fields at given path
-  " - a.000[0]  : path/to/tagfile | tagfile
-  " - a.000[1:] : {fieldname}={fieldvalue}
-  " eg: ['/py/pytags', 'togit=0']
-  let l:stub_path_to_tagfile = a:000[0]
-  let l:default_overrides = s:GetDefaultOverrides(a:000)
-  call s:CreateTagFile(l:stub_path_to_tagfile, l:default_overrides)
-endfunction
-
-
-function! zettel#insertTag(...) abort
-  " Function that inserts a tag into a tag file
-  " - a.000[0]  : @path/to/tagfile | tagfile/tagname | tagname
-  " - a.000[1:] : {fieldname}={fieldvalue}
-  let l:tag_path = s:GetTagPath(a:000)
-  let [l:tagname, l:stub_path_to_tagfile] = s:GetTagNameAndTagFileStub(l:tag_path)
-  let l:position = s:GetCurrentPosition() " [line, col, filename]
-  let l:default_overrides = s:GetDefaultOverrides(a:000)
-  let l:tag_line = s:GetTagLine(l:tagname, l:position, l:default_overrides)
-  call s:InsertTagLine(l:tag_line, l:stub_path_to_tagfile)
-endfunction
-
 
 
 function s:MapGetSourceLine(line)
@@ -408,7 +378,7 @@ function s:HandleTagJump(tag_lines, sourceline) abort
 
   " Jump and Set Tagstack
   let [l:winid, l:tagstack] = s:GetTagStackUpdateDetails(l:tagname)
-  let l:jump_successful = s:JumpToTag(l:abs_path_to_file, l:loc_command)
+  let l:jump_successful = s:JumpToLocation(l:abs_path_to_file, l:loc_command)
   if l:jump_successful && &tagstack
     call settagstack(l:winid, l:tagstack, "a")
   endif
@@ -428,35 +398,97 @@ function s:GetFZFSourceLineHeader()
 endfunction
 
 
+function s:GetTagLink(stub_path_to_tagfile, tagname)
+	let l:taglink_path = join([a:stub_path_to_tagfile, a:tagname], "/")
+	return g:zettel_tags_taglink_prefix .. l:taglink_path
+endfunction
+
+
+function s:DeleteTagLinkLineByTaglinks(taglinks)
+  let l:tagslink_lines = readfile(s:tagslink_path)
+  let l:lines_to_writeback = filter(l:tagslink_lines, {i,v -> index(a:taglinks, split(v, "\t")[2])==-1})
+  call writefile(l:lines_to_writeback, s:tagslink_path)
+endfunction
+
+
 function s:HandleTagDeletion(tag_lines, sourcelines) abort
   let l:todelete = {}
   for sourceline in a:sourcelines
     let l:parts = s:GetTagLinePartsFromSourceLine(a:tag_lines, sourceline)
     let l:lineno = l:parts[1]
-    let l:abs_path_to_tagfile = zettel#utils#getAbsolutePath(l:parts[2], 1)
+
+	  " Get Taglink
+    let l:abs_path_to_tagfile = l:parts[2]
+	  let l:tagname = l:parts[3]
+	  let l:stub_path_to_tagfile = zettel#utils#removeZettelRootFromPath(l:abs_path_to_tagfile)
+	  let l:taglink = s:GetTagLink(l:stub_path_to_tagfile, l:tagname)
+
     if !has_key(l:todelete, l:abs_path_to_tagfile)
       let l:todelete[l:abs_path_to_tagfile] = []
     endif
-    call add(l:todelete[l:abs_path_to_tagfile], l:lineno)
+
+    call add(l:todelete[l:abs_path_to_tagfile], [l:lineno, l:taglink])
   endfor
 
+	let l:all_taglinks = []
   for key in keys(l:todelete)
-    let l:linestowrite = []
+	  let l:details = l:todelete[key]
+    let l:linenos = map(copy(l:details), {i,v -> v[0]})
+    let l:taglinks = map(l:details, {i,v -> v[1]})
+	  call extend(l:all_taglinks, l:taglinks)
+
+    let l:lines_to_writeback = []
     let l:i = 0
     for line in readfile(key)
       let l:i += 1
-      if index(l:todelete[key], l:i .. "") == -1
-        call add(l:linestowrite, line)
+      if index(l:linenos, l:i .. "") == -1
+        call add(l:lines_to_writeback, line)
       endif
     endfor
-    call writefile(l:linestowrite, key)
+    call writefile(l:lines_to_writeback, key)
   endfor
 
-  " TODO: Delete taglinks
+	let l:all_taglinks = zettel#utils#getUniqueItems(l:all_taglinks)
+  call s:DeleteTagLinkLineByTaglinks(l:all_taglinks)
 endfunction
 
 
-function s:RunFZF(source, Sink, is_sinklist=0)
+function s:GetFormattedTagLink(taglink)
+	" Probably change this if markdown file
+	return a:taglink
+endfunction
+
+
+function s:InsertTagLink(taglink)
+	execute "normal! a" .. a:taglink .. "\<ESC>"
+endfunction
+
+
+function s:InsertTagLinkIntoLinkFile(taglink)
+  " format: 'abs_path_to_file_with_taglink {TAB} line:col {TAB} taglink
+  let [l:line, l:col, l:filepath] = s:GetCurrentPosition() " [line, col, filename]
+  let l:cursor_pos = l:line .. ":" .. l:col
+	let l:linkline = join([l:filepath, l:cursor_pos, a:taglink], "\t")
+  call writefile([l:linkline], s:tagslink_path, "a")
+endfunction
+
+
+function s:HandleTagLinkInsertion(tag_lines, sourceline) abort
+  " Sink function for fzf, this will insert the tagline
+  " insert tag into file
+  " insert tag into taglink file
+  let l:parts = s:GetTagLinePartsFromSourceLine(a:tag_lines, a:sourceline)
+	let l:tagname = l:parts[3]
+	let l:abs_path_to_tagfile = l:parts[2]
+	let l:stub_path_to_tagfile = zettel#utils#removeZettelRootFromPath(l:abs_path_to_tagfile)
+	let l:taglink = s:GetTagLink(l:stub_path_to_tagfile, l:tagname)
+	let l:taglink = s:GetFormattedTagLink(l:taglink)
+	call s:InsertTagLink(l:taglink)
+  call s:InsertTagLinkIntoLinkFile(l:taglink)
+endfunction
+
+
+function s:RunFZFToDisplayTags(source, Sink, is_sinklist=0)
   call zettel#utils#throwErrorIfNoFZF()
   let l:preview_cmd = "cat -n {5}"
   if executable("bat")
@@ -486,76 +518,68 @@ function s:RunFZF(source, Sink, is_sinklist=0)
 endfunction
 
 
-function! zettel#deleteTag() abort
-  let l:tag_lines = s:GetListOfAllTags()
-  let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
-  let l:Sink = function("s:HandleTagDeletion", [l:tag_lines])
-	call s:RunFZF(l:source, l:Sink, 1)
-	return
+function s:HandleJumpToTaglink(taglink_line)
+	let l:parts = zettel#utils#getSplitLine(a:taglink_line, "\t")
+	let l:abs_path_to_file = l:parts[0]
+	let l:loc_command = "call cursor("..join(split(l:parts[1], ":"), ",")..")"
+	call s:JumpToLocation(l:abs_path_to_file, l:loc_command)
 endfunction
 
+
+" Autoload functions called from plugin/zettel.vim
+function! zettel#initialize() abort
+  call mkdir(g:zettel_tags_root, "p")
+  call s:LoadTagsFromTagsloc()
+  call s:CreateTagFile(g:zettel_tags_unscoped_tagfile_name, {}, 0)
+endfunction
+
+
+" Autoload functions called by user commands
+function! zettel#createNewTagFile(...) abort
+  " Creates a new tagfile with given fields at given path
+  " - a.000[0]  : path/to/tagfile | tagfile
+  " - a.000[1:] : {fieldname}={fieldvalue}
+  " eg: ['/py/pytags', 'togit=0']
+  let l:stub_path_to_tagfile = a:000[0]
+  let l:default_overrides = s:GetDefaultOverrides(a:000)
+  call s:CreateTagFile(l:stub_path_to_tagfile, l:default_overrides)
+endfunction
+
+function! zettel#insertTag(...) abort
+  " Function that inserts a tag into a tag file
+  " - a.000[0]  : @path/to/tagfile | tagfile/tagname | tagname
+  " - a.000[1:] : {fieldname}={fieldvalue}
+  let l:tag_path = s:GetTagPath(a:000)
+  let [l:tagname, l:stub_path_to_tagfile] = s:GetTagNameAndTagFileStub(l:tag_path)
+  let l:position = s:GetCurrentPosition() " [line, col, filename]
+  let l:default_overrides = s:GetDefaultOverrides(a:000)
+  let l:tag_line = s:GetTagLine(l:tagname, l:position, l:default_overrides)
+  call s:InsertTagLine(l:tag_line, l:stub_path_to_tagfile)
+endfunction
 
 function! zettel#jumpToTag() abort
   let l:tag_lines = s:GetListOfAllTags()
   let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
   let l:Sink = function("s:HandleTagJump", [l:tag_lines])
-	call s:RunFZF(l:source, l:Sink, 0)
+	call s:RunFZFToDisplayTags(l:source, l:Sink, 0)
 	return
 endfunction
-
-
-function s:GetTagLink(tagname, tagpath, taglineno)
-  " TODO: complete this function
-endfunction
-
-
-function s:GetFormattedTagLink(taglink)
-  " TODO: complete this function
-endfunction
-
-
-function s:InsertTagLink(taglink)
-  " TODO: complete this function
-endfunction
-
-
-function s:InsertLinkIntoLinkFile(taglink)
-  " format: 'pathtofilewithlink {TAB} linkloc {TAB} taglink
-  " taglink contains tagfile path and the the tagname
-  " just needs to be destructured
-  let [l:line, l:col, l:linkpath] = s:GGetTagLocetCurrentPosition() " [line, col, filename]
-  let l:linkloc = "call cursor(" .. l:line .. "," .. l:col .. ")"
-  let l:linkline = l:linkpath .. "\t" .. l:linkloc .. "\t" .. a:taglink
-  writefile([l:linkline], s:tagslink_path, "a")
-endfunction
-
-
-function s:HandleTagLinkInsertion(tagline) abort
-  " Sink function for fzf, this will insert the tagline
-  " insert tag into file
-  " insert tag into taglink file
-
-  " let l:taglink = s:GetTagLink(a:tagline)
-  " let l:formatted_taglink = s:GetFormattedTagLink(l:taglink)
-  " call s:InsertTagLink(l:formatted_taglink)
-  " call s:InsertLinkIntoLinkFile(l:taglink)
-endfunction
-
 
 function! zettel#insertTagLink() abort
   let l:tag_lines = s:GetListOfAllTags()
   let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
-  let l:Sink = function("s:HandleTagJump", [l:tag_lines])
+  let l:Sink = function("s:HandleTagLinkInsertion", [l:tag_lines])
+	call s:RunFZFToDisplayTags(l:source, l:Sink, 0)
+endfunction
 
-
+function! zettel#deleteTag() abort
   let l:tag_lines = s:GetListOfAllTags()
-  call fzf#run(
-    \fzf#wrap(
-      \{
-        \'source': map(l:tag_lines, function('s:MapGetFormattedTagLine')),
-        \'options': '--no-sort --preview="echo tagname={1} tagfile={2};'.. l:preview_cmd ..'" --preview-window=up,+{4},~1 --prompt "Tag>"',
-        \'sink' : function('s:HandleTagLinkInsertion')
-      \}
-    \)
-  \)
+  let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
+  let l:Sink = function("s:HandleTagDeletion", [l:tag_lines])
+	call s:RunFZFToDisplayTags(l:source, l:Sink, 1)
+endfunction
+
+function! zettel#listTagLinks() abort
+	let l:taglink_lines = readfile(s:tagslink_path)
+	call fzf#run(fzf#wrap({"source":l:taglink_lines, "sink": function("s:HandleJumpToTaglink")}))
 endfunction
