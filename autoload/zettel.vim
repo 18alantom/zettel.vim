@@ -259,10 +259,10 @@ function s:GetTagPath(args)
 endfunction
 
 
-function s:GetListOfAllTags(with_line_number=0) abort
+function s:GetListOfAllTags() abort
   " Will return list of all taglines
   " tagline will have tagpath prepended
-	" TODO: don't list tags not in zettel root
+  " TODO: don't list tags not in zettel root
   let l:tags = map(split(&tags, ","), "zettel#utils#getScrubbedRelativePath(v:val)")
   let l:tags = map(l:tags, "zettel#utils#getAbsolutePath(v:val)")
   let l:tags = filter(l:tags, "filereadable(v:val)")
@@ -270,20 +270,19 @@ function s:GetListOfAllTags(with_line_number=0) abort
   let l:tag_lines = []
   let l:header_suffix = "!_TAG_"
   let l:suffix_len = len(l:header_suffix)
-  for tagfile in l:tags
-    let l:i = 0
-    for line in readfile(l:tagfile)
-      let l:i += 1
+  let l:idx = 0
+  for abs_path_to_tagfile in l:tags
+    let l:lineno = 0
+    for line in readfile(abs_path_to_tagfile)
+      let l:lineno += 1
       if (line == "") ||
-        \ (len(line) < l:suffix_len) ||
         \ (line[:l:suffix_len - 1] == l:header_suffix)
         continue
       endif
-      if a:with_line_number
-        call add(l:tag_lines, i .. "\t" .. tagfile .. "\t" .. line)
-      else
-        call add(l:tag_lines, tagfile .. "\t" .. line)
-      endif
+      call add(
+        \l:tag_lines,
+        \l:idx.. "\t" .. l:lineno .. "\t" .. abs_path_to_tagfile .. "\t" .. l:line)
+      let l:idx += 1
     endfor
   endfor
   return l:tag_lines
@@ -296,60 +295,9 @@ function s:MapGetFormattedTagLine(i, tagline)
   let l:tagpath = zettel#utils#getPaddedStr(l:tagpath, 48)
   let l:tagname = zettel#utils#getPaddedStr(l:tagparts[1], 24)
   let l:taglocation = l:tagparts[3]
-  let l:lineno = matchstr(l:taglocation, '\(\d\+\)')
+  let l:tagloc_lineno = matchstr(l:taglocation, '\(\d\+\)')
   let l:filepath = l:tagparts[2]
-  return l:tagname .. "  " .. l:tagpath .. repeat(" ", 4) .. l:filepath .. repeat(" ", 4) .. l:lineno .. repeat(" ", 4) .. l:taglocation
-endfunction
-
-
-function s:GetTagLink(tagname, tagpath, taglineno)
-  " TODO: complete this function
-endfunction
-
-
-function s:GetFormattedTagLink(taglink)
-  " TODO: complete this function
-endfunction
-
-
-function s:InsertTagLink(taglink)
-  " TODO: complete this function
-endfunction
-
-
-function s:InsertLinkIntoLinkFile(taglink)
-  " format: 'pathtofilewithlink {TAB} linkloc {TAB} taglink
-  " taglink contains tagfile path and the the tagname
-  " just needs to be destructured
-  let [l:line, l:col, l:linkpath] = s:GGetTagLocetCurrentPosition() " [line, col, filename]
-  let l:linkloc = "call cursor(" .. l:line .. "," .. l:col .. ")"
-  let l:linkline = l:linkpath .. "\t" .. l:linkloc .. "\t" .. a:taglink
-  writefile([l:linkline], s:tagslink_path, "a")
-endfunction
-
-
-function s:HandleTagSelection(tagline) abort
-  " Sink function for fzf, this will insert the tagline
-  " insert tag into file
-  " insert tag into taglink file
-
-  " let l:taglink = s:GetTagLink(a:tagline)
-  " let l:formatted_taglink = s:GetFormattedTagLink(l:taglink)
-  " call s:InsertTagLink(l:formatted_taglink)
-  " call s:InsertLinkIntoLinkFile(l:taglink)
-endfunction
-
-
-function s:HandleTagJump(tagline)
-  let l:parts = zettel#utils#getSplitLine(a:tagline, "  ")
-  let l:tagname = l:parts[0]
-  let l:stub_path_to_tagfile = l:parts[2]
-  let l:loc_command = l:parts[4][:-4]
-  let [l:winid, l:tagstack] = s:GetTagStackUpdateDetails(l:tagname)
-  let l:jump_successful = s:JumpToTag(l:stub_path_to_tagfile, l:loc_command)
-  if l:jump_successful && &tagstack
-    call settagstack(l:winid, l:tagstack, "a")
-  endif
+  return l:tagname .. "  " .. l:tagpath .. repeat(" ", 4) .. l:filepath .. repeat(" ", 4) .. l:tagloc_lineno .. repeat(" ", 4) .. l:taglocation
 endfunction
 
 
@@ -363,8 +311,8 @@ function s:GetTagStackUpdateDetails(tagname)
 endfunction
 
 
-function s:JumpToTag(file_path, loc_command) abort
-  execute "edit " .. a:file_path
+function s:JumpToTag(abs_path_to_file, loc_command) abort
+  execute "edit " .. a:abs_path_to_file
   execute a:loc_command
   return 1
 endfunction
@@ -380,35 +328,6 @@ function s:MapGetFormattedTagLineForDeletion(i, tagline)
   let l:filepath = l:tagparts[3]
   return l:tagname .. "  " .. l:taglineno .. "  " .. l:tagpath .. repeat(" ", 4) .. l:filepath .. repeat(" ", 4) .. l:lineno
 endfunction
-
-
-function s:HandleTagDeletion(taglines)
-  let l:todelete = {}
-  for tagline in a:taglines
-    let l:parts = zettel#utils#getSplitLine(tagline, "  ")
-    let l:lineno = l:parts[1]
-    let l:tagfilepath = zettel#utils#getAbsolutePath(l:parts[2], 1)
-    if !has_key(l:todelete, l:tagfilepath)
-      let l:todelete[l:tagfilepath] = []
-    endif
-    call add(l:todelete[l:tagfilepath], l:lineno)
-  endfor
-
-  for key in keys(l:todelete)
-    let l:linestowrite = []
-    let l:i = 0
-    for line in readfile(key)
-      let l:i += 1
-      if index(l:todelete[key], l:i .. "") == -1
-        call add(l:linestowrite, line)
-      endif
-    endfor
-    call writefile(l:linestowrite, key)
-  endfor
-
-  " TODO: Delete taglinks
-endfunction
-
 
 
 " Autoload functions called from plugin/zettel.vim
@@ -444,65 +363,198 @@ function! zettel#insertTag(...) abort
 endfunction
 
 
-function! zettel#insertTagLink() abort
-  " Function that inserts a taglink at the current cursor position
-  " - a.000[0] : tagfile/tagname | tagname
-  call zettel#utils#throwErrorIfNoFZF()
 
-  let l:preview_cmd = "cat -n {3}"
-  if executable("bat")
-    let l:preview_cmd = "bat --color=always --highlight-line={4} {3}"
-  endif
+function s:MapGetSourceLine(line)
+	" Line Format
+	" index \t lineno \t abs_path_to_tagfile \t tagname \t abs_path_to_file \t loc_command|;" \t field_values
+  "
+  " SourceLine Format
+  " l:index '  ' l:tagname '  ' l:stub_path_to_tagfile '  ' l:tagloc_lineno '  ' l:abs_path_to_file
+	let l:tagparts = zettel#utils#getSplitLine(a:line, "\t")
+	let l:index = zettel#utils#getPaddedStr(l:tagparts[0], 4, 0)
+	let l:tagname = zettel#utils#getPaddedStr(l:tagparts[3], 16)
+	let l:stub_path_to_tagfile = zettel#utils#getPaddedStr(
+    \zettel#utils#removeZettelRootFromPath(l:tagparts[2]), 16
+	\)
+  let l:tagloc_lineno = zettel#utils#getPaddedStr(
+    \matchstr(l:tagparts[5], '\(\d\+\)'), 4, 0
+	\)
+  let l:abs_path_to_file = l:tagparts[4]
 
-  let l:tag_lines = s:GetListOfAllTags()
-  call fzf#run(
-    \fzf#wrap(
-      \{
-        \'source': map(l:tag_lines, function('s:MapGetFormattedTagLine')),
-        \'options': '--no-sort --preview="echo tagname={1} tagfile={2};'.. l:preview_cmd ..'" --preview-window=up,+{4},~1 --prompt "Tag>"',
-        \'sink' : function('s:HandleTagSelection')
-      \}
-    \)
-  \)
+  let l:sourceline = [
+    \l:index,
+    \l:tagname,
+    \l:stub_path_to_tagfile,
+    \l:tagloc_lineno,
+    \l:abs_path_to_file
+	\]
+  let l:delim = repeat(" ", 2)
+	return join(l:sourceline, l:delim)
 endfunction
 
 
-function! zettel#jumpToTag() abort
-  call zettel#utils#throwErrorIfNoFZF()
+function s:GetTagLinePartsFromSourceLine(tag_lines, sourceline)
+  let l:delim = repeat(" ", 2)
+	let l:idx = zettel#utils#getSplitLine(a:sourceline, l:delim)[0]
+  return zettel#utils#getSplitLine(a:tag_lines[l:idx], "\t")
+endfunction
 
-  let l:preview_cmd = "cat -n {3}"
-  if executable("bat")
-    let l:preview_cmd = "bat --color=always --highlight-line={4} {3}"
+
+function s:HandleTagJump(tag_lines, sourceline) abort
+  let l:parts = s:GetTagLinePartsFromSourceLine(a:tag_lines, a:sourceline)
+  let l:abs_path_to_file = l:parts[4]
+  let l:tagname = l:parts[3]
+  let l:loc_command = l:parts[5][:-4]
+
+  " Jump and Set Tagstack
+  let [l:winid, l:tagstack] = s:GetTagStackUpdateDetails(l:tagname)
+  let l:jump_successful = s:JumpToTag(l:abs_path_to_file, l:loc_command)
+  if l:jump_successful && &tagstack
+    call settagstack(l:winid, l:tagstack, "a")
   endif
+endfunction
 
-  let l:tag_lines = s:GetListOfAllTags()
-  call fzf#run(
-    \fzf#wrap(
-      \{
-        \'source': map(l:tag_lines, function('s:MapGetFormattedTagLine')),
-        \'options': '--no-sort --preview="echo tagname={1} tagfile={2};'.. l:preview_cmd ..'" --preview-window=up,+{4},~1 --prompt "Tag>"',
-        \'sink' : function('s:HandleTagJump')
-      \}
-    \)
-  \)
+
+function s:GetFZFSourceLineHeader()
+	let l:header_parts = [
+		\zettel#utils#getPaddedStr("#", 4, 0),
+		\zettel#utils#getPaddedStr("tagname", 16),
+		\zettel#utils#getPaddedStr("tagfile", 16),
+		\zettel#utils#getPaddedStr("line", 4, 0),
+		\"filepath"
+	\]
+	let l:delim = repeat(" ", 2)
+	return join(l:header_parts, l:delim)
+endfunction
+
+
+function s:HandleTagDeletion(tag_lines, sourcelines) abort
+  let l:todelete = {}
+  for sourceline in a:sourcelines
+    let l:parts = s:GetTagLinePartsFromSourceLine(a:tag_lines, sourceline)
+    let l:lineno = l:parts[1]
+    let l:abs_path_to_tagfile = zettel#utils#getAbsolutePath(l:parts[2], 1)
+    if !has_key(l:todelete, l:abs_path_to_tagfile)
+      let l:todelete[l:abs_path_to_tagfile] = []
+    endif
+    call add(l:todelete[l:abs_path_to_tagfile], l:lineno)
+  endfor
+
+  for key in keys(l:todelete)
+    let l:linestowrite = []
+    let l:i = 0
+    for line in readfile(key)
+      let l:i += 1
+      if index(l:todelete[key], l:i .. "") == -1
+        call add(l:linestowrite, line)
+      endif
+    endfor
+    call writefile(l:linestowrite, key)
+  endfor
+
+  " TODO: Delete taglinks
+endfunction
+
+
+function s:RunFZF(source, Sink, is_sinklist=0)
+  call zettel#utils#throwErrorIfNoFZF()
+  let l:preview_cmd = "cat -n {5}"
+  if executable("bat")
+    let l:preview_cmd = "bat --color=always --highlight-line={4} {5}"
+  endif
+	let l:header = s:GetFZFSourceLineHeader()
+	let l:options = ['--no-sort',
+    \'--multi',
+		\'--preview="' .. l:preview_cmd .. '"',
+		\'--preview-window=up,+{4}',
+		\'--header="' .. l:header .. '"',
+		\'--prompt "Tag> "'
+	\]
+
+	let l:fzf_kwargs = {
+		\'source': a:source,
+		\'options' : join(l:options, " ")
+	\}
+
+	if a:is_sinklist
+		let l:fzf_kwargs['sink*'] = a:Sink
+	else
+		let l:fzf_kwargs['sink'] = a:Sink
+	endif
+
+  call fzf#run(fzf#wrap(l:fzf_kwargs))
 endfunction
 
 
 function! zettel#deleteTag() abort
-  call zettel#utils#throwErrorIfNoFZF()
+  let l:tag_lines = s:GetListOfAllTags()
+  let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
+  let l:Sink = function("s:HandleTagDeletion", [l:tag_lines])
+	call s:RunFZF(l:source, l:Sink, 1)
+	return
+endfunction
 
-  let l:preview_cmd = "cat -n {4}"
-  if executable("bat")
-    let l:preview_cmd = "bat --color=always --highlight-line={5} {4}"
-  endif
 
-  let l:tag_lines = s:GetListOfAllTags(1)
+function! zettel#jumpToTag() abort
+  let l:tag_lines = s:GetListOfAllTags()
+  let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
+  let l:Sink = function("s:HandleTagJump", [l:tag_lines])
+	call s:RunFZF(l:source, l:Sink, 0)
+	return
+endfunction
+
+
+function s:GetTagLink(tagname, tagpath, taglineno)
+  " TODO: complete this function
+endfunction
+
+
+function s:GetFormattedTagLink(taglink)
+  " TODO: complete this function
+endfunction
+
+
+function s:InsertTagLink(taglink)
+  " TODO: complete this function
+endfunction
+
+
+function s:InsertLinkIntoLinkFile(taglink)
+  " format: 'pathtofilewithlink {TAB} linkloc {TAB} taglink
+  " taglink contains tagfile path and the the tagname
+  " just needs to be destructured
+  let [l:line, l:col, l:linkpath] = s:GGetTagLocetCurrentPosition() " [line, col, filename]
+  let l:linkloc = "call cursor(" .. l:line .. "," .. l:col .. ")"
+  let l:linkline = l:linkpath .. "\t" .. l:linkloc .. "\t" .. a:taglink
+  writefile([l:linkline], s:tagslink_path, "a")
+endfunction
+
+
+function s:HandleTagLinkInsertion(tagline) abort
+  " Sink function for fzf, this will insert the tagline
+  " insert tag into file
+  " insert tag into taglink file
+
+  " let l:taglink = s:GetTagLink(a:tagline)
+  " let l:formatted_taglink = s:GetFormattedTagLink(l:taglink)
+  " call s:InsertTagLink(l:formatted_taglink)
+  " call s:InsertLinkIntoLinkFile(l:taglink)
+endfunction
+
+
+function! zettel#insertTagLink() abort
+  let l:tag_lines = s:GetListOfAllTags()
+  let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
+  let l:Sink = function("s:HandleTagJump", [l:tag_lines])
+
+
+  let l:tag_lines = s:GetListOfAllTags()
   call fzf#run(
     \fzf#wrap(
       \{
-        \'source': map(l:tag_lines, function('s:MapGetFormattedTagLineForDeletion')),
-        \'options': '--multi --no-sort --preview="echo tagname={1} tagfile={3};'.. l:preview_cmd ..'" --preview-window=up,+{5},~1 --prompt "Tag>"',
-        \'sink*' : function('s:HandleTagDeletion')
+        \'source': map(l:tag_lines, function('s:MapGetFormattedTagLine')),
+        \'options': '--no-sort --preview="echo tagname={1} tagfile={2};'.. l:preview_cmd ..'" --preview-window=up,+{4},~1 --prompt "Tag>"',
+        \'sink' : function('s:HandleTagLinkInsertion')
       \}
     \)
   \)

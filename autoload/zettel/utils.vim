@@ -24,9 +24,13 @@ function zettel#utils#getUniqueItems(list)
 endfunction
 
 
-function zettel#utils#getPaddedStr(str, amt)
+function zettel#utils#getPaddedStr(str, amt, right=1)
   " Add left ' ' padding to a string
-  return a:str .. repeat(' ', a:amt - len(a:str))
+  let l:pad = repeat(' ', a:amt - len(a:str))
+  if a:right
+    return a:str .. l:pad
+  endif
+  return l:pad .. a:str
 endfunction
 
 
