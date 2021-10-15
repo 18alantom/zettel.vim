@@ -25,12 +25,12 @@ command! ZettelListTagLinks call zettel#listTagLinks()
 
 
 " Key Bindings
-if !exists("g:zettel_tags_prevent_default_bindings")
+if !exists("g:zettel_prevent_default_bindings")
   nnoremap <unique> <leader>zi :ZettelInsertTag<space>
   nnoremap <unique> <leader>zj :ZettelJumpToTag<cr>
   nnoremap <unique> <leader>zl :ZettelInsertTagLink<cr>
   nnoremap <unique> <leader>zd :ZettelDeleteTag<cr>
-  nnoremap <C-]> :call <SID>OverloadCtrlSqBracket()<CR>
+  nnoremap <silent> <C-]> :call <SID>OverloadCtrlSqBracket()<CR>
 endif
 
 

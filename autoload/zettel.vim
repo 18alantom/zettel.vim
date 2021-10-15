@@ -4,25 +4,25 @@
 
 
 " Initialize Global Variables
-if !exists("g:zettel_tags_root")
+if !exists("g:zettel_root")
   let s:home = getenv("HOME")
   if s:home == v:null
-    echoerr s:plugin_name . " : please set $HOME or g:zettel_tags_root" 
+    echoerr s:plugin_name . " : please set $HOME or g:zettel_root"
   endif
 
-  let g:zettel_tags_root = s:home . "/.zettel"
+  let g:zettel_root = s:home . "/.zettel"
 endif
 
-if !exists("g:zettel_tags_unscoped_tagfile_name")
-  let g:zettel_tags_unscoped_tagfile_name = "tags"
+if !exists("g:zettel_unscoped_tagfile_name")
+  let g:zettel_unscoped_tagfile_name = "tags"
 endif
 
-if !exists("g:zettel_tags_default_field_togit")
-  let g:zettel_tags_default_field_togit = 1
+if !exists("g:zettel_default_field_togit")
+  let g:zettel_default_field_togit = 1
 endif
 
-if !exists("g:zettel_tags_taglink_prefix")
-	let g:zettel_tags_taglink_prefix = "z://"
+if !exists("g:zettel_taglink_prefix")
+	let g:zettel_taglink_prefix = "z://"
 endif
 
 
@@ -30,7 +30,7 @@ endif
 let s:plugin_name = "zettel.vim"
 
 let s:field_defaults = {
-  \"togit" : g:zettel_tags_default_field_togit
+  \"togit" : g:zettel_default_field_togit
 \}
 
 let s:tag_file_headers = [
@@ -41,9 +41,9 @@ let s:tag_file_headers = [
   \"!_TAG_PROGRAM_URL	https://github.com/18alantom/vim-zettel /source code/",
 \]
 
-let s:tagsloc_path = g:zettel_tags_root . "/" . "tagsloc.txt"
-let s:tagslink_path = g:zettel_tags_root . "/" . "tagslink.txt"
-let s:taglink_pattern = '\<' .. g:zettel_tags_taglink_prefix .. '\%(\w\|[-/]\)\+'
+let s:tagsloc_path = g:zettel_root . "/" . "tagsloc.txt"
+let s:tagslink_path = g:zettel_root . "/" . "tagslink.txt"
+let s:taglink_pattern = '\<' .. g:zettel_taglink_prefix .. '\%(\w\|[-/]\)\+'
 
 
 
@@ -139,11 +139,11 @@ endfunction
 
 function s:CreateTagFile(stub_path_to_tagfile, default_overrides = {}, exist_err = 1) abort
   " Will create a tagfile at passed stub path prepended by
-  " g:zettel_tags_root add its absolute path to &tags, tagloc.txt
+  " g:zettel_root add its absolute path to &tags, tagloc.txt
   " and return it.
   "
   " stub_path_to_tagfile
-  " - path stub to the tag file; g:zettel_tags_root will be
+  " - path stub to the tag file; g:zettel_root will be
   "   prepended to it unless it's relative (./, ../)
   " - example : 'code/pytags'
   "
@@ -230,7 +230,7 @@ endfunction
 
 function s:GetTagNameAndTagFileStub(tag_path)
   let l:tagname = getline(".")
-  let l:stub_path_to_tagfile = g:zettel_tags_unscoped_tagfile_name
+  let l:stub_path_to_tagfile = g:zettel_unscoped_tagfile_name
 
   if a:tag_path=~#"^@"
     let l:stub_path_to_tagfile = zettel#utils#getScrubbedRelativePath(a:tag_path[1:])
@@ -316,7 +316,9 @@ endfunction
 
 
 function s:JumpToLocation(abs_path_to_file, loc_command) abort
-  execute "edit " .. a:abs_path_to_file
+  if expand("%:p") != a:abs_path_to_file
+    execute "edit " .. a:abs_path_to_file
+  endif
   execute a:loc_command
   return 1
 endfunction
@@ -403,7 +405,7 @@ endfunction
 
 function s:GetTagLink(stub_path_to_tagfile, tagname)
 	let l:taglink_path = join([a:stub_path_to_tagfile, a:tagname], "/")
-	return g:zettel_tags_taglink_prefix .. l:taglink_path
+	return g:zettel_taglink_prefix .. l:taglink_path
 endfunction
 
 
@@ -538,7 +540,7 @@ endfunction
 
 
 function s:DestructureTagLink(taglink)
-  let l:tagpath = a:taglink[len(g:zettel_tags_taglink_prefix):]
+  let l:tagpath = a:taglink[len(g:zettel_taglink_prefix):]
   let l:parts = split(l:tagpath, "/")
   let l:tagname = l:parts[-1]
   let l:stub_path_to_tagfile = join(l:parts[:-2], "/")
@@ -575,9 +577,9 @@ endfunction
 
 " Autoload functions to be called in plugin/zettel.vim
 function! zettel#initialize() abort
-  call mkdir(g:zettel_tags_root, "p")
+  call mkdir(g:zettel_root, "p")
   call s:LoadTagsFromTagsloc()
-  call s:CreateTagFile(g:zettel_tags_unscoped_tagfile_name, {}, 0)
+  call s:CreateTagFile(g:zettel_unscoped_tagfile_name, {}, 0)
 endfunction
 
 
