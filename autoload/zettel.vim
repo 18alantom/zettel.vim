@@ -44,7 +44,6 @@ let s:tag_file_headers = [
 let s:tagsloc_path = g:zettel_tags_root . "/" . "tagsloc.txt"
 let s:tagslink_path = g:zettel_tags_root . "/" . "tagslink.txt"
 let s:taglink_pattern = '\<' .. g:zettel_tags_taglink_prefix .. '\%(\w\|[-/]\)\+'
-" valid taglink can have alphanum, - and _
 
 
 
@@ -268,7 +267,6 @@ endfunction
 function s:GetListOfAllTags() abort
   " Will return list of all taglines
   " tagline will have tagpath prepended
-  " TODO: don't list tags not in zettel root
   let l:tags = map(split(&tags, ","), "zettel#utils#getScrubbedRelativePath(v:val)")
   let l:tags = map(l:tags, "zettel#utils#getAbsolutePath(v:val)")
   let l:tags = filter(l:tags, "filereadable(v:val)")
@@ -371,6 +369,7 @@ function s:GetTagLinePartsFromSourceLine(tag_lines, sourceline)
   return zettel#utils#getSplitLine(a:tag_lines[l:idx], "\t")
 endfunction
 
+
 function s:JumpToLocationAndSetTagStack(tagname, abs_path_to_file, loc_command)
   let [l:winid, l:tagstack] = s:GetTagStackUpdateDetails(a:tagname)
   let l:jump_successful = s:JumpToLocation(a:abs_path_to_file, a:loc_command)
@@ -379,6 +378,7 @@ function s:JumpToLocationAndSetTagStack(tagname, abs_path_to_file, loc_command)
   endif
 	return l:jump_successful
 endfunction
+
 
 function s:HandleTagJump(tag_lines, sourceline) abort
   let l:parts = s:GetTagLinePartsFromSourceLine(a:tag_lines, a:sourceline)
@@ -499,6 +499,7 @@ function s:RunFZFToDisplayTags(source, Sink, is_sinklist=0)
   endif
 	let l:header = s:GetFZFSourceLineHeader()
 	let l:options = ['--no-sort',
+    \'--nth=1,2,3',
     \'--multi',
 		\'--preview="' .. l:preview_cmd .. '"',
 		\'--preview-window=up,+{4}',
@@ -529,7 +530,50 @@ function s:HandleJumpToTaglink(taglink_line)
 endfunction
 
 
-" Autoload functions called from plugin/zettel.vim
+function s:GetTagLinkMatches(line)
+  let taglink_matches = []
+  call substitute(a:line, s:taglink_pattern, '\=add(taglink_matches, submatch(0))', 'g')
+  return taglink_matches
+endfunction
+
+
+function s:DestructureTagLink(taglink)
+  let l:tagpath = a:taglink[len(g:zettel_tags_taglink_prefix):]
+  let l:parts = split(l:tagpath, "/")
+  let l:tagname = l:parts[-1]
+  let l:stub_path_to_tagfile = join(l:parts[:-2], "/")
+	return [l:stub_path_to_tagfile, l:tagname]
+endfunction
+
+
+function s:GetTagLineFromTagFile(stub_path_to_tagfile, tagname) abort
+	let l:abs_path_to_tagfile = zettel#utils#getAbsolutePath(a:stub_path_to_tagfile, 1)
+	let l:lines = reverse(readfile(l:abs_path_to_tagfile))
+	for line in l:lines
+		if split(line, "\t")[0] == a:tagname
+			return line
+		endif
+	endfor
+	return ""
+endfunction
+
+
+function s:GetJumpLocationFromTagLine(tagline)
+	let l:parts = split(a:tagline, "\t")
+	return [l:parts[1], l:parts[2]]
+endfunction
+
+
+function s:JumpFromTagLink(taglink) abort
+	let [l:stub_path_to_tagfile, l:tagname] = s:DestructureTagLink(a:taglink)
+	let l:tagline = s:GetTagLineFromTagFile(l:stub_path_to_tagfile, l:tagname)
+	let [l:abs_path_to_file, l:loc_command] = s:GetJumpLocationFromTagLine(l:tagline)
+	return s:JumpToLocationAndSetTagStack(l:tagname, l:abs_path_to_file, l:loc_command)
+endfunction
+
+
+
+" Autoload functions to be called in plugin/zettel.vim
 function! zettel#initialize() abort
   call mkdir(g:zettel_tags_root, "p")
   call s:LoadTagsFromTagsloc()
@@ -537,7 +581,6 @@ function! zettel#initialize() abort
 endfunction
 
 
-" Autoload functions called by user commands
 function! zettel#createNewTagFile(...) abort
   " Creates a new tagfile with given fields at given path
   " - a.000[0]  : path/to/tagfile | tagfile
@@ -547,6 +590,7 @@ function! zettel#createNewTagFile(...) abort
   let l:default_overrides = s:GetDefaultOverrides(a:000)
   call s:CreateTagFile(l:stub_path_to_tagfile, l:default_overrides)
 endfunction
+
 
 function! zettel#insertTag(...) abort
   " Function that inserts a tag into a tag file
@@ -560,6 +604,7 @@ function! zettel#insertTag(...) abort
   call s:InsertTagLine(l:tag_line, l:stub_path_to_tagfile)
 endfunction
 
+
 function! zettel#jumpToTag() abort
   let l:tag_lines = s:GetListOfAllTags()
   let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
@@ -568,12 +613,14 @@ function! zettel#jumpToTag() abort
 	return
 endfunction
 
+
 function! zettel#insertTagLink() abort
   let l:tag_lines = s:GetListOfAllTags()
   let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
   let l:Sink = function("s:HandleTagLinkInsertion", [l:tag_lines])
 	call s:RunFZFToDisplayTags(l:source, l:Sink, 0)
 endfunction
+
 
 function! zettel#deleteTag() abort
   let l:tag_lines = s:GetListOfAllTags()
@@ -582,49 +629,13 @@ function! zettel#deleteTag() abort
 	call s:RunFZFToDisplayTags(l:source, l:Sink, 1)
 endfunction
 
+
 function! zettel#listTagLinks() abort
 	let l:taglink_lines = readfile(s:tagslink_path)
 	call fzf#run(fzf#wrap({"source":l:taglink_lines, "sink": function("s:HandleJumpToTaglink")}))
 endfunction
 
-function s:GetTagLinkMatches(line)
-  let taglink_matches = []
-  call substitute(a:line, s:taglink_pattern, '\=add(taglink_matches, submatch(0))', 'g')
-  return taglink_matches
-endfunction
 
-function s:DestructureTagLink(taglink)
-  let l:tagpath = a:taglink[len(g:zettel_tags_taglink_prefix):]
-  let l:parts = split(l:tagpath, "/")
-  let l:tagname = l:parts[-1]
-  let l:stub_path_to_tagfile = join(l:parts[:-2], "/")
-	return [l:stub_path_to_tagfile, l:tagname]
-endfunction
-
-function s:GetTagLineFromTagFile(stub_path_to_tagfile, tagname) abort
-	let l:abs_path_to_tagfile = zettel#utils#getAbsolutePath(a:stub_path_to_tagfile, 1)
-	let l:lines = reverse(readfile(l:abs_path_to_tagfile))
-	for line in l:lines
-		if split(line, "\t")[0] == a:tagname
-			return line
-		endif
-	endfor
-	return ""
-endfunction
-
-function s:GetJumpLocationFromTagLine(tagline)
-	let l:parts = split(a:tagline, "\t")
-	return [l:parts[1], l:parts[2]]
-endfunction
-
-function s:JumpFromTagLink(taglink) abort
-	let [l:stub_path_to_tagfile, l:tagname] = s:DestructureTagLink(a:taglink)
-	let l:tagline = s:GetTagLineFromTagFile(l:stub_path_to_tagfile, l:tagname)
-	let [l:abs_path_to_file, l:loc_command] = s:GetJumpLocationFromTagLine(l:tagline)
-	return s:JumpToLocationAndSetTagStack(l:tagname, l:abs_path_to_file, l:loc_command)
-endfunction
-
-" Overloading Ctrl-]
 function! zettel#tagLinkJump() abort
   let l:line = getline(".")
   let l:col = getpos(".")[2]

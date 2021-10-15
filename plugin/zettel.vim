@@ -11,6 +11,7 @@ let g:loaded_zettel = 1
 call zettel#initialize()
 
 
+
 " Commands
 command! -nargs=+ ZettelCreateNewTagFile
   \ call zettel#createNewTagFile(<f-args>)
@@ -19,11 +20,12 @@ command! -nargs=* -complete=customlist,s:GetCompletionInsertTag ZettelInsertTag
 command! ZettelJumpToTag call zettel#jumpToTag()
 command! ZettelInsertTagLink call zettel#insertTagLink()
 command! ZettelDeleteTag call zettel#deleteTag()
+command! ZettelListTagLinks call zettel#listTagLinks()
+
 
 
 " Key Bindings
 if !exists("g:zettel_tags_prevent_default_bindings")
-  nnoremap <unique> <leader>zc :ZettelCreateNewTagFile<space>
   nnoremap <unique> <leader>zi :ZettelInsertTag<space>
   nnoremap <unique> <leader>zj :ZettelJumpToTag<cr>
   nnoremap <unique> <leader>zl :ZettelInsertTagLink<cr>
@@ -32,6 +34,8 @@ if !exists("g:zettel_tags_prevent_default_bindings")
 endif
 
 
+
+" Internal Functions
 function s:GetCompletionInsertTag(arg_lead, cmd_line, cursor_pos)
   let l:tags = []
   for t in split(&tags, ",")

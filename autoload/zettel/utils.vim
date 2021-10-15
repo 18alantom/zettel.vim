@@ -64,7 +64,6 @@ function zettel#utils#getCurrentPosition() abort
 endfunction
 
 
-" Path helpers
 function zettel#utils#getScrubbedRelativePath(path)
   " Removes relativeness of a path, returns stub
   return substitute(a:path, '[.~]\+/', "", "")
