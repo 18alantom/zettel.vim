@@ -1,0 +1,262 @@
+*zettel-vim.txt*  Plugin to create hyperlinks between files.
+==============================================================================
+ZETTEL - INDEX                                         *zettel* *zettel-index*
+
+
+- |zettel-introduction| 
+  - |zettel-usage|
+- |zettel-commands|
+  - |ZettelCreateNewTagFile|
+  - |ZettelInsertTag|
+  - |ZettelJumpToTag|
+  - |ZettelInsertTagLink|
+  - |ZettelDeleteTag|
+  - |ZettelListTagLinks|
+- |zettel-key-bindings|
+- |zettel-field-values|
+- |zettel-implementation|
+  - |zettel-tags|
+  - |zettel-taglinks|
+
+
+==============================================================================
+ZETTEL                                                   *zettel-introduction*
+
+
+Essentially what this plugin does is help you create hyperlinks and jump across
+files that you edit in vim.
+
+It does this by making use of vim's tag functionality (see :h tag). Generally
+you need a tool such as ctags to generate a populated tagfile. This helps you
+create your own tags and tagfiles and jump around them using FZF.
+
+There are two concepts used here:
+1. |tag|: this marks a location in a file.                        |zettel-tags|
+2. |taglink|: this points to a tag from another location.     |zettel-taglinks|
+Tags aren't visible in a file, taglinks are visible in a file.
+
+
+Usage                                                           *zettel-usage*
+  A simple way of using this plugin is:
+
+  1. Mark a location (A) using a tag (<leader>zi).
+  2. Place a taglink (<leader>zl) at another location (B).
+  3. Press Ctrl-] on the taglink (at B) it will jump to the tag (at A).
+  4. Pressing Ctrl-T will jump back (to B).
+
+  The locations (A, B) mentioned above can belong to the same file or different
+  files.
+  
+
+==============================================================================
+ZETTEL - COMMANDS                                            *zettel-commands*
+
+
+Commands capture most of the functionality of zettel.vim these are to be called
+using key bindings for convenience.
+
+Only feature not captured by a command is |zettel-jump-from-tag| this is invoked
+using <C-]> keybinding unless |g:zettel_prevent_default_bindings| is set to 1.
+
+
+*ZettelCreateNewTagFile*
+  Creates a new tag file at |g:zettel_root|. Field values are optional.
+
+  The only reason to use this command is if custom field values have to be added
+  or default ones have to be bypassed, else a new tag file is created on tag
+  insertion if it doesn't exist.
+
+  format: `ZettelCreateNewTagFile {tagfile} [{field}={value}]`
+
+  example: `:ZettelCreateNewTagFile recipes togit=0`
+    A tag file named "recipes" is created with `togit` field value set to 0.
+
+
+*ZettelInsertTag*
+  Inserts a tag into the specified tag file file. If tag file is not provided
+  |g:zettel_unscoped_tagfile_name| is used. If the provided tag file doesn't
+  exist then it is created first.
+
+  format: `ZettelInsertTag [{tagname|tagfile/tagname|@tagfile}] [{field}={value}]`
+
+  example: `:ZettelInsertTag recipes/lasagne`
+    A tag name "lasagne" is added to the tag file "recipes"
+
+
+*ZettelJumpToTag*
+  Opens an FZF window listing all the tags across all the tag files. On
+  selection by typing <Enter>, the file pointed to by the tag is opened in the
+  current window.
+  
+  format: `ZettelJumpToTag`
+
+
+*ZettelInsertTagLink*
+  Opens an FZF window listing all the tags across all the tag files. On
+  selection by typing <Enter>, a taglink to the selected tag is inserted after
+  the cursor.
+
+  format: `ZettelInsertTagLink`
+
+
+*ZettelDeleteTag*
+  Opens an FZF window listing all the tags across all the tag files. Multiple
+  tags can be selected by typing <Tab> or a single on by typing <Enter> for
+  deletion.
+
+  Deleting a tag also deletes all taglink lines from the taglink file. 
+
+  format: `ZettelDeleteTag`
+
+
+*ZettelListTagLinks*
+  Opens an FZF window listing all the inserted taglinks. Selecting a taglink
+  will open the file containing the taglink in the current window.
+  
+  format: `:ZettelListTagLinks`
+
+
+==============================================================================
+ZETTEL - KEY BINDINGS                                    *zettel-key-bindings*
+
+
+<leader>zi	    Calls |ZettelInsertTag| which will insert a tag into a tag file.
+
+<leader>zj	    Calls |ZettelJumpToTag| which opens the FZF window listing all
+                the tags. Selected tag will open in the current window.
+
+<leader>zl	    Calls |ZettelInsertTagLink| which will open an FZF listing all 
+                the tags. Selected tag will cause its taglink to be insertedat
+                the cursor position.
+
+<leader>zd	    Calls |ZettelDeleteTag| which will open a multiselect FZF window
+                (using <Tab>). Selected tags will be deleted forever.
+
+<C-]>	          Jump to tag from taglink under cursor to a tag. If a taglink is
+                not found on the current line then it falls back to the default
+                behaviour.
+
+To not use the default key bindings add this line to your .vimrc: >
+  let g:zettel_prevent_default_bindings = 1
+<
+
+If you don't want to use the default bindings but still keep the Ctrl-]
+behaviour then add this to your .vimrc: >
+  let g:zettel_prevent_default_bindings = 1
+  function s:OverloadCtrlSqBracket()
+    let l:zettel_jump = zettel#tagLinkJump()
+    if !l:zettel_jump
+      execute "normal!\<C-]>"
+    endif
+  endfunction
+  nnoremap <silent> <C-]> :call <SID>OverloadCtrlSqBracket()<CR>
+
+
+==============================================================================
+ZETTEL - GLOBAL VARIABLES                            *zettel-global-variables*
+
+
+List of global variables used by zettel.vim that can be changed in the .vimrc to
+override default behaviour.
+
+*g:zettel_root*
+  Location where all the tagfiles, taglink file and tagloc file are stored.
+
+  default: `$HOME/.zettel`
+
+
+*g:zettel_prevent_default_bindings*
+  Setting this will prevent default keybindings from being set.
+
+  default: `0`
+
+
+*g:zettel_unscoped_tagfile_name*
+  Location of tags where a tag file isn't provided on insertion.
+
+  default: `tags`
+
+
+*g:zettel_default_field_togit*
+  Used to set tag file level `togit` field value. The functionality for this
+  hasn't been implemented yet.
+
+  default: `1`
+
+
+*g:zettel_taglink_prefix*
+  Used to identify a taglink by prefixing it. This can be set to anything but if
+  it isn't a relatively rare string tag jumps from a tag link will break.
+
+  default: `"z://"`
+
+
+==============================================================================
+ZETTEL - FIELD VALUES                                    *zettel-field-values*
+
+
+Field values are key value pairs that are set at either the tagfile level or a
+per tag level.
+
+These can be used to extend the functionality of tags. Such as a plugin that
+creates a bare git repository for all files having tags where `togit=1`. This is
+the plan for the `togit` flag but hasn't been incorporated yet.
+
+
+==============================================================================
+ZETTEL - IMPLEMENTATION                                  *zettel-implemention*
+
+
+This section has some of the implementation details of this plugin.
+
+
+Tags                                                             *zettel-tags*
+  Tags are created/inserted using |ZettelInsertTag|.
+
+  These are essentially stored in tagfiles which are files that don't have any
+  particular extention and are identified by vim using paths in the `&tags`
+  variable and header lines in them.
+
+  There are two different kinds of formats for a tagline, zettel uses the
+  following:
+
+    {tagname}	{TAB} {tagfile} {TAB} {tagaddress} {term} {field} ..
+
+  The tag files used are unsorted tagfiles to allow for quick insertion.
+
+  On tag insertion, using |ZettelInsertTag| a `tagfile` and a `tagname` have to
+  be provided.
+
+  Zettel treats `tagfile`s as a namespace. It allows for duplicate `tagname`s in
+  a `tagfile` but this may cause issues.
+
+  A `tagfile` should ideally be a single, short, easy to remember word.
+
+  A `tagname` should be unique to a tagfile, can contain alphanumeric characters
+  and "-", "_". It may contain spaces too but will cause issues when creating
+  taglinks.
+
+  Locations of all tagfiles are maintained in the tagsloc.txt file at
+  |g:zettel_root|. This file isn't necessary but can be useful if zettel tag
+  files have to be maintained elsewhere (implementation for this was removed).
+
+  for more details on tags see: |tags|, |tags-file-format|
+
+
+Taglinks                                          *taglinks* *zettel-taglinks*
+  Taglinks are inserted using |ZettelInsertTagLink|.
+
+  References to these are are maintained in tagslink.txt at |g:zettel_root|.
+  The only reason for maintaining these references is to capture the whole
+  graph, i.e. all nodes (tags or taglinks) having incoming or outgoing edges.
+  
+  The format of a taglink line in a taglink file is:
+
+    {path_to_file_with_taglink} {TAB} {line:col} {TAB} {taglink}
+  
+  Here `taglink` is what is inserted as a pointer to a `tag` into the file being
+  edited. A `taglink` has the following format
+    
+    {g:zettel_taglink_prefix} / {stub_path_to_tagfile} / {tagname}
+
+  All taglink lines can be listed out using |ZettelListTagLinks|.

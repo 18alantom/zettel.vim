@@ -32,11 +32,15 @@ There are two concepts used here:
 
 *Tags* aren't visible in a file, *taglinks* are visible in a file.
 
-A simple way of using this is to mark a location in a file using a
-[_tag_](#zettelinserttag) (`<leader>zi`) and then place a
-[_taglink_](#zettelinserttaglink) (`<leader>zl`) at another location. When you
-press `Ctrl-]` on the _taglink_ it will jump to the _tag_; pressing `Ctrl-T`
-will jump back.
+### Usage
+A simple way of using this plugin is:
+1. Mark a location (A) using a [_tag_](#zettelinserttag) (`<leader>zi`).
+2. Place a [_taglink_](#zettelinserttaglink) (`<leader>zl`) at another location (B).
+3. Press `Ctrl-]` on the _taglink_ (at B) it will jump to the _tag_ (at A).
+4. Pressing `Ctrl-T` will jump back (to B).
+
+The locations (A, B) mentioned above can belong to the same file or different
+files.
 
 ## Installation
 This plugin makes use of [FZF](https://github.com/junegunn/fzf), check [this
@@ -144,3 +148,7 @@ where `togit` is set to 1 will be added unless overridden by a tag level
 `togit`.
 
 *This hasn't been implemented yet.*
+
+---
+
+For more info type `:h zettel` in vim.
