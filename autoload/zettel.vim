@@ -43,6 +43,8 @@ let s:tag_file_headers = [
 
 let s:tagsloc_path = g:zettel_tags_root . "/" . "tagsloc.txt"
 let s:tagslink_path = g:zettel_tags_root . "/" . "tagslink.txt"
+let s:taglink_pattern = '\<' .. g:zettel_tags_taglink_prefix .. '\%(\w\|[-/]\)\+'
+" valid taglink can have alphanum, - and _
 
 
 
@@ -369,21 +371,21 @@ function s:GetTagLinePartsFromSourceLine(tag_lines, sourceline)
   return zettel#utils#getSplitLine(a:tag_lines[l:idx], "\t")
 endfunction
 
+function s:JumpToLocationAndSetTagStack(tagname, abs_path_to_file, loc_command)
+  let [l:winid, l:tagstack] = s:GetTagStackUpdateDetails(a:tagname)
+  let l:jump_successful = s:JumpToLocation(a:abs_path_to_file, a:loc_command)
+  if l:jump_successful && &tagstack
+    call settagstack(l:winid, l:tagstack, "a")
+  endif
+endfunction
 
 function s:HandleTagJump(tag_lines, sourceline) abort
   let l:parts = s:GetTagLinePartsFromSourceLine(a:tag_lines, a:sourceline)
   let l:abs_path_to_file = l:parts[4]
   let l:tagname = l:parts[3]
   let l:loc_command = l:parts[5][:-4]
-
-  " Jump and Set Tagstack
-  let [l:winid, l:tagstack] = s:GetTagStackUpdateDetails(l:tagname)
-  let l:jump_successful = s:JumpToLocation(l:abs_path_to_file, l:loc_command)
-  if l:jump_successful && &tagstack
-    call settagstack(l:winid, l:tagstack, "a")
-  endif
+	call s:JumpToLocationAndSetTagStack(l:tagname, l:abs_path_to_file, l:loc_command)
 endfunction
-
 
 function s:GetFZFSourceLineHeader()
 	let l:header_parts = [
@@ -582,4 +584,79 @@ endfunction
 function! zettel#listTagLinks() abort
 	let l:taglink_lines = readfile(s:tagslink_path)
 	call fzf#run(fzf#wrap({"source":l:taglink_lines, "sink": function("s:HandleJumpToTaglink")}))
+endfunction
+
+function s:GetTagLinkMatches(line)
+  let taglink_matches = []
+  call substitute(a:line, s:taglink_pattern, '\=add(taglink_matches, submatch(0))', 'g')
+  return taglink_matches
+endfunction
+
+function s:DestructureTagLink(taglink)
+  let l:tagpath = a:taglink[len(g:zettel_tags_taglink_prefix):]
+  let l:parts = split(l:tagpath, "/")
+  let l:tagname = l:parts[-1]
+  let l:stub_path_to_tagfile = join(l:parts[:-2], "/")
+	return [l:stub_path_to_tagfile, l:tagname]
+endfunction
+
+function s:GetTagLineFromTagFile(stub_path_to_tagfile, tagname) abort
+	let l:abs_path_to_tagfile = zettel#utils#getAbsolutePath(a:stub_path_to_tagfile, 1)
+	let l:lines = reverse(readfile(l:abs_path_to_tagfile))
+	for line in l:lines
+		if split(line, "\t")[0] == a:tagname
+			return line
+		endif
+	endfor
+	return ""
+endfunction
+
+function s:GetJumpLocationFromTagLine(tagline)
+	let l:parts = split(a:tagline, "\t")
+	return [l:parts[1], l:parts[2]]
+endfunction
+
+function s:JumpFromTagLink(taglink) abort
+	let [l:stub_path_to_tagfile, l:tagname] = s:DestructureTagLink(a:taglink)
+	let l:tagline = s:GetTagLineFromTagFile(l:stub_path_to_tagfile, l:tagname)
+	let [l:abs_path_to_file, l:loc_command] = s:GetJumpLocationFromTagLine(l:tagline)
+	call s:JumpToLocationAndSetTagStack(l:tagname, l:abs_path_to_file, l:loc_command)
+endfunction
+
+" Overloading Ctrl-]
+function! zettel#tagLinkJump() abort
+  let l:line = getline(".")
+  let l:col = getpos(".")[2]
+  let l:matches = s:GetTagLinkMatches(l:line)
+  if len(l:matches) == 0
+    return
+  endif
+  let l:match_positions = []
+
+  " Get start and end index of the taglinks.
+  for m in l:matches
+    call add(l:match_positions, matchstrpos(l:line, m))
+  endfor
+
+  " Select taglink with cursor in it.
+  let l:selected_taglink = filter(
+    \copy(l:match_positions),
+    \{i,v-> v[1]<= l:col && v[2] >= l:col}
+  \)
+
+  " Select the closest if none
+  if len(l:selected_taglink) == 0
+    let l:start_dist = map(
+      \copy(l:match_positions),
+      \{i,v-> v[1] - l:col}
+    \)
+    let l:ix = index(
+      \l:start_dist,
+      \min(l:start_dist)
+    \)
+    let l:selected_taglink = l:match_positions[l:ix][0]
+  else
+    let l:selected_taglink = l:selected_taglink[0][0]
+  endif
+  call s:JumpFromTagLink(l:selected_taglink)
 endfunction
