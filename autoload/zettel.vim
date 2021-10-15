@@ -377,6 +377,7 @@ function s:JumpToLocationAndSetTagStack(tagname, abs_path_to_file, loc_command)
   if l:jump_successful && &tagstack
     call settagstack(l:winid, l:tagstack, "a")
   endif
+	return l:jump_successful
 endfunction
 
 function s:HandleTagJump(tag_lines, sourceline) abort
@@ -620,7 +621,7 @@ function s:JumpFromTagLink(taglink) abort
 	let [l:stub_path_to_tagfile, l:tagname] = s:DestructureTagLink(a:taglink)
 	let l:tagline = s:GetTagLineFromTagFile(l:stub_path_to_tagfile, l:tagname)
 	let [l:abs_path_to_file, l:loc_command] = s:GetJumpLocationFromTagLine(l:tagline)
-	call s:JumpToLocationAndSetTagStack(l:tagname, l:abs_path_to_file, l:loc_command)
+	return s:JumpToLocationAndSetTagStack(l:tagname, l:abs_path_to_file, l:loc_command)
 endfunction
 
 " Overloading Ctrl-]
@@ -629,7 +630,7 @@ function! zettel#tagLinkJump() abort
   let l:col = getpos(".")[2]
   let l:matches = s:GetTagLinkMatches(l:line)
   if len(l:matches) == 0
-    return
+    return 0
   endif
   let l:match_positions = []
 
@@ -658,5 +659,5 @@ function! zettel#tagLinkJump() abort
   else
     let l:selected_taglink = l:selected_taglink[0][0]
   endif
-  call s:JumpFromTagLink(l:selected_taglink)
+  return s:JumpFromTagLink(l:selected_taglink)
 endfunction

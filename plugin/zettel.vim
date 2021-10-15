@@ -28,13 +28,11 @@ if !exists("g:zettel_tags_prevent_default_bindings")
   nnoremap <unique> <leader>zj :ZettelJumpToTag<cr>
   nnoremap <unique> <leader>zl :ZettelInsertTagLink<cr>
   nnoremap <unique> <leader>zd :ZettelDeleteTag<cr>
+  nnoremap <C-]> :call <SID>OverloadCtrlSqBracket()<CR>
 endif
 
 
-" Completion Functions
 function s:GetCompletionInsertTag(arg_lead, cmd_line, cursor_pos)
-  " TODO: Add suggestions with word under cursor suffixed
-  " TODO: Add suggestions with '@' prefixed for line entry
   let l:tags = []
   for t in split(&tags, ",")
     if !filereadable(t)
@@ -43,4 +41,12 @@ function s:GetCompletionInsertTag(arg_lead, cmd_line, cursor_pos)
     call add(l:tags, zettel#utils#getRelativePath(t))
   endfor
   return uniq(l:tags)
+endfunction
+
+
+function s:OverloadCtrlSqBracket()
+  let l:zettel_jump = zettel#tagLinkJump()
+  if !l:zettel_jump
+    execute "normal!\<C-]>"
+  endif
 endfunction
