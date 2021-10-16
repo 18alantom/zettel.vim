@@ -264,35 +264,6 @@ function s:GetTagPath(args)
 endfunction
 
 
-function s:GetListOfAllTags() abort
-  " Will return list of all taglines
-  " tagline will have tagpath prepended
-  let l:tags = map(split(&tags, ","), "zettel#utils#getScrubbedRelativePath(v:val)")
-  let l:tags = map(l:tags, "zettel#utils#getAbsolutePath(v:val)")
-  let l:tags = filter(l:tags, "filereadable(v:val)")
-  let l:tags = zettel#utils#getUniqueItems(l:tags)
-  let l:tag_lines = []
-  let l:header_suffix = "!_TAG_"
-  let l:suffix_len = len(l:header_suffix)
-  let l:idx = 0
-  for abs_path_to_tagfile in l:tags
-    let l:lineno = 0
-    for line in readfile(abs_path_to_tagfile)
-      let l:lineno += 1
-      if (line == "") ||
-        \ (line[:l:suffix_len - 1] == l:header_suffix)
-        continue
-      endif
-      call add(
-        \l:tag_lines,
-        \l:idx.. "\t" .. l:lineno .. "\t" .. abs_path_to_tagfile .. "\t" .. l:line)
-      let l:idx += 1
-    endfor
-  endfor
-  return l:tag_lines
-endfunction
-
-
 function s:MapGetFormattedTagLine(i, tagline)
   let l:tagparts = zettel#utils#getSplitLine(a:tagline, "\t")
   let l:tagpath = zettel#utils#removeZettelRootFromPath(l:tagparts[0])
@@ -607,8 +578,8 @@ function! zettel#insertTag(...) abort
 endfunction
 
 
-function! zettel#jumpToTag() abort
-  let l:tag_lines = s:GetListOfAllTags()
+function! zettel#listTags() abort
+  let l:tag_lines = zettel#utils#getAllTagLines()
   let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
   let l:Sink = function("s:HandleTagJump", [l:tag_lines])
 	call s:RunFZFToDisplayTags(l:source, l:Sink, 0)
@@ -617,7 +588,7 @@ endfunction
 
 
 function! zettel#insertTagLink() abort
-  let l:tag_lines = s:GetListOfAllTags()
+  let l:tag_lines = zettel#utils#getAllTagLines()
   let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
   let l:Sink = function("s:HandleTagLinkInsertion", [l:tag_lines])
 	call s:RunFZFToDisplayTags(l:source, l:Sink, 0)
@@ -625,7 +596,7 @@ endfunction
 
 
 function! zettel#deleteTag() abort
-  let l:tag_lines = s:GetListOfAllTags()
+  let l:tag_lines = zettel#utils#getAllTagLines()
   let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
   let l:Sink = function("s:HandleTagDeletion", [l:tag_lines])
 	call s:RunFZFToDisplayTags(l:source, l:Sink, 1)
@@ -633,7 +604,7 @@ endfunction
 
 
 function! zettel#listTagLinks() abort
-	let l:taglink_lines = readfile(s:tagslink_path)
+	let l:taglink_lines = zettel#utils#getAllTagLinkLines()
 	call fzf#run(fzf#wrap({"source":l:taglink_lines, "sink": function("s:HandleJumpToTaglink")}))
 endfunction
 
@@ -673,4 +644,14 @@ function! zettel#tagLinkJump() abort
     let l:selected_taglink = l:selected_taglink[0][0]
   endif
   return s:JumpFromTagLink(l:selected_taglink)
+endfunction
+
+
+function! zettel#listTagsInThisFile()
+  let l:this_file = expand("%:p")
+  let l:tag_lines = zettel#utils#getAllTagLines({"filepath":l:this_file})
+  let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
+  let l:Sink = function("s:HandleTagJump", [l:tag_lines])
+	call s:RunFZFToDisplayTags(l:source, l:Sink, 0)
+	return
 endfunction

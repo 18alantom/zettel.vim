@@ -64,7 +64,7 @@ section.
 | Binding   | What it does|
 |--------------|-------------|
 | `<leader>zi` |Calls [`ZettelInsertTag`](#zettelinserttag) which will insert a tag into a tag file. *|
-| `<leader>zj` | Calls [`ZettelJumpToTag`](#zetteljumptotag) which opens the *FZF* window listing all the tags. Selected tag will open in the current window.|
+| `<leader>zj` | Calls [`ZettelListTags`](#zettellisttags) which opens the *FZF* window listing all the tags. Selected tag will open in the current window.|
 | `<leader>zl` | Calls [`ZettelInsertTagLink`](#zettelinserttaglink) which will open an *FZF* listing all the tags. Selected tag will cause its taglink to be inserted at the cursor position.|
 | `<leader>zd` | Calls [`ZettelDeleteTag`](#zetteldeletetag) which will open a multiselect (using `<Tab>`) *FZF* window. Selected tags will be deleted forever. |
 | `<C-]>` | Jump to from taglink under cursor to a tag. If a taglink is not found then it falls back to default behaviour.|
@@ -105,11 +105,11 @@ exist then it is created first.
 - **example** — `:ZettelInsertTag recipes/lasagne`
     - A tag name "lasagne" is added to the tag file "recipes"
 
-#### `ZettelJumpToTag`
+#### `ZettelListTags`
 Opens an *FZF* window listing all the tags across all the tag files. On
 selection by typing `<Enter>`, the file pointed to by the tag is opened in the
 current window.
-- **format** — `:ZettelJumpToTag`
+- **format** — `:ZettelListTags`
 
 #### `ZettelInsertTagLink`
 Opens an *FZF* window listing all the tags across all the tag files. On
@@ -127,6 +127,12 @@ deletion.
 Opens an *FZF* window listing all the inserted taglinks. Selecting a taglink
 will open the file containing the taglink in the current window.
 - **format** — `:ZettelListTagLinks`
+
+#### `ZettelListTagsInThisFile`
+Opens an *FZF* window listing all the tags in the file related to the open
+buffer. On selection by typing `<Enter>`, the file pointed to by the tag is
+opened in the current window.
+- **format** — `:ZettelListTagsInThisFile`
 
 ## Global Variables
 List of global variables used by `zettel.vim` that can be changed in the `.vimrc` to override default

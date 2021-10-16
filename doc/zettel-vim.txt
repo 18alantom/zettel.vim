@@ -8,10 +8,11 @@ ZETTEL - INDEX                                         *zettel* *zettel-index*
 - |zettel-commands|
   - |ZettelCreateNewTagFile|
   - |ZettelInsertTag|
-  - |ZettelJumpToTag|
+  - |ZettelListTags|
   - |ZettelInsertTagLink|
   - |ZettelDeleteTag|
   - |ZettelListTagLinks|
+  - |ZettelListTagsInThisFile|
 - |zettel-key-bindings|
 - |zettel-field-values|
 - |zettel-implementation|
@@ -83,12 +84,12 @@ using <C-]> keybinding unless |g:zettel_prevent_default_bindings| is set to 1.
     A tag name "lasagne" is added to the tag file "recipes"
 
 
-*ZettelJumpToTag*
+*ZettelListTags*
   Opens an FZF window listing all the tags across all the tag files. On
   selection by typing <Enter>, the file pointed to by the tag is opened in the
   current window.
   
-  format: `ZettelJumpToTag`
+  format: `ZettelListTags`
 
 
 *ZettelInsertTagLink*
@@ -116,13 +117,21 @@ using <C-]> keybinding unless |g:zettel_prevent_default_bindings| is set to 1.
   format: `:ZettelListTagLinks`
 
 
+*ZettelListTagsInThisFile*
+  Opens an FZF window listing all the tags in the file related to the open
+  buffer. On selection by typing <Enter>, the file pointed to by the tag is
+  opened in the current window.
+  
+  format: `:ZettelListTagsInThisFile`
+
+
 ==============================================================================
 ZETTEL - KEY BINDINGS                                    *zettel-key-bindings*
 
 
 <leader>zi	    Calls |ZettelInsertTag| which will insert a tag into a tag file.
 
-<leader>zj	    Calls |ZettelJumpToTag| which opens the FZF window listing all
+<leader>zj	    Calls |ZettelListTags| which opens the FZF window listing all
                 the tags. Selected tag will open in the current window.
 
 <leader>zl	    Calls |ZettelInsertTagLink| which will open an FZF listing all 
@@ -220,7 +229,7 @@ Tags                                                             *zettel-tags*
   There are two different kinds of formats for a tagline, zettel uses the
   following:
 
-    {tagname}	{TAB} {tagfile} {TAB} {tagaddress} {term} {field} ..
+    {tagname}	{TAB} {path_to_file_with_tag} {TAB} {tagaddress} {term} {field} ..
 
   The tag files used are unsorted tagfiles to allow for quick insertion.
 
