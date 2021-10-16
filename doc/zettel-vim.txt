@@ -209,6 +209,13 @@ override default behaviour.
   default: `"z://"`
 
 
+*g:zettel_confirm_before_overwrite*
+  If a duplicate tag is found in a tagfile, setting this to 1 will cause zettel
+  to confirm before overwriting it.
+
+  default: `0`
+
+
 ==============================================================================
 ZETTEL - FIELD VALUES                                    *zettel-field-values*
 
@@ -245,8 +252,9 @@ Tags                                                             *zettel-tags*
   On tag insertion, using |ZettelInsertTag| a `tagfile` and a `tagname` have to
   be provided.
 
-  Zettel treats `tagfile`s as a namespace. It allows for duplicate `tagname`s in
-  a `tagfile` but this may cause issues.
+  Zettel treats `tagfile`s as a namespace. It does not allows for duplicate
+  `tagname`s in a `tagfile` so that there is a 1:1 mapping between a taglink and
+  its tag.
 
   A `tagfile` should ideally be a single, short, easy to remember word.
 

@@ -150,6 +150,8 @@ behaviour.
 | `g:zettel_unscoped_tagfile_name` | `tags` | Location of tags where a tag file isn't provided on insertion. |
 | `g:zettel_default_field_togit`| `1` | Used to set tag file level `togit` field value. |
 | `g:zettel_taglink_prefix`| `"z://"` | Used to identify a taglink by prefixing it.|
+|`g:zettel_confirm_before_overwrite`| `0` | If a duplicate tag is found in a tagfile, setting this to 1 will cause zettel to confirm before overwriting it.|
+
 ## Field Values
 These are key value pairs set for each tag file or tag.
 
