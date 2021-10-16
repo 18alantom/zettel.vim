@@ -134,6 +134,11 @@ buffer. On selection by typing `<Enter>`, the file pointed to by the tag is
 opened in the current window.
 - **format** — `:ZettelListTagsInThisFile`
 
+#### `ZettelListTagLinksToATag`
+Opens an *FZF* window listing all the tags, on selecting a tag a new *FZF* window
+opens up showing all the taglinks that link to the selected tag.
+- **format** — `:ZettelListTagLinksToATag`
+
 ## Global Variables
 List of global variables used by `zettel.vim` that can be changed in the `.vimrc` to override default
 behaviour.

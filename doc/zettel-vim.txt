@@ -13,6 +13,7 @@ ZETTEL - INDEX                                         *zettel* *zettel-index*
   - |ZettelDeleteTag|
   - |ZettelListTagLinks|
   - |ZettelListTagsInThisFile|
+  - |ZettelListTagLinksToATag|
 - |zettel-key-bindings|
 - |zettel-field-values|
 - |zettel-implementation|
@@ -123,6 +124,14 @@ using <C-]> keybinding unless |g:zettel_prevent_default_bindings| is set to 1.
   opened in the current window.
   
   format: `:ZettelListTagsInThisFile`
+
+
+*ZettelListTagLinksToATag*
+  Opens an FZF window listing all the tags, on selecting a tag a new FZF window
+  opens up showing all the taglinks that link to the selected tag.
+
+  format: `:ZettelListTagLinksToATag`
+
 
 
 ==============================================================================

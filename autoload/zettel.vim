@@ -42,8 +42,8 @@ let s:tag_file_headers = [
 \]
 
 let s:tagsloc_path = g:zettel_root . "/" . "tagsloc.txt"
-let s:tagslink_path = g:zettel_root . "/" . "tagslink.txt"
 let s:taglink_pattern = '\<' .. g:zettel_taglink_prefix .. '\%(\w\|[-/]\)\+'
+let g:zettel_tagslink_path = g:zettel_root . "/" . "tagslink.txt"
 
 
 
@@ -381,9 +381,9 @@ endfunction
 
 
 function s:DeleteTagLinkLineByTaglinks(taglinks)
-  let l:tagslink_lines = readfile(s:tagslink_path)
+  let l:tagslink_lines = readfile(g:zettel_tagslink_path)
   let l:lines_to_writeback = filter(l:tagslink_lines, {i,v -> index(a:taglinks, split(v, "\t")[2])==-1})
-  call writefile(l:lines_to_writeback, s:tagslink_path)
+  call writefile(l:lines_to_writeback, g:zettel_tagslink_path)
 endfunction
 
 
@@ -445,7 +445,7 @@ function s:InsertTagLinkIntoLinkFile(taglink)
   let [l:line, l:col, l:filepath] = s:GetCurrentPosition() " [line, col, filename]
   let l:cursor_pos = l:line .. ":" .. l:col
 	let l:linkline = join([l:filepath, l:cursor_pos, a:taglink], "\t")
-  call writefile([l:linkline], s:tagslink_path, "a")
+  call writefile([l:linkline], g:zettel_tagslink_path, "a")
 endfunction
 
 
@@ -542,6 +542,21 @@ function s:JumpFromTagLink(taglink) abort
 	let l:tagline = s:GetTagLineFromTagFile(l:stub_path_to_tagfile, l:tagname)
 	let [l:abs_path_to_file, l:loc_command] = s:GetJumpLocationFromTagLine(l:tagline)
 	return s:JumpToLocationAndSetTagStack(l:tagname, l:abs_path_to_file, l:loc_command)
+endfunction
+
+
+function s:GetTagLinkFromSourceLine(sourceline)
+  let l:parts = zettel#utils#getSplitLine(a:sourceline, "  ")
+  let l:stub_path_to_tagfile = zettel#utils#removeZettelRootFromPath(l:parts[2])
+  let l:taglink = s:GetTagLink(l:stub_path_to_tagfile, l:parts[1])
+  return l:taglink
+endfunction
+
+
+function s:HandleTagSelectionToListTagLinks(sourceline)
+  let l:taglink = s:GetTagLinkFromSourceLine(a:sourceline)
+  let l:taglink_lines = zettel#utils#getAllTagLinkLines({"taglink":l:taglink})
+	call fzf#run(fzf#wrap({"source":l:taglink_lines, "sink": function("s:HandleJumpToTaglink")}))
 endfunction
 
 
@@ -654,4 +669,12 @@ function! zettel#listTagsInThisFile()
   let l:Sink = function("s:HandleTagJump", [l:tag_lines])
 	call s:RunFZFToDisplayTags(l:source, l:Sink, 0)
 	return
+endfunction
+
+
+function! zettel#listTagLinksToATag()
+  let l:tag_lines = zettel#utils#getAllTagLines()
+  let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
+  let l:Sink = function("s:HandleTagSelectionToListTagLinks")
+	call s:RunFZFToDisplayTags(l:source, l:Sink, 0)
 endfunction

@@ -3,6 +3,10 @@
 " License:  MIT License
 
 
+" Autoload isn't working hence this.
+let s:plugin_name = "zettel.vim"
+
+
 function zettel#utils#throwErrorIfNoFZF() abort
   let l:has_fzf = exists("g:loaded_fzf") && g:loaded_fzf
   if !l:has_fzf
@@ -217,13 +221,13 @@ endfunction
 
 
 function! zettel#utils#getAllTagLinkLines(filters={}) abort
-	let l:taglink_lines = readfile(s:tagslink_path)
+	let l:taglink_lines = readfile(g:zettel_tagslink_path)
   if !len(a:filters)
     return l:taglink_lines
   endif
   let l:filtered_taglink_lines = []
   for line in l:taglink_lines
-    let l:parts = zettel#utils#getSplitLine(line)
+    let l:parts = zettel#utils#getSplitLine(line, "\t")
 
     " Filters
     if has_key(a:filters, "filepath") && l:parts[0] != a:filters["filepath"]

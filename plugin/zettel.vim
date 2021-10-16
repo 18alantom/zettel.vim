@@ -22,6 +22,7 @@ command! ZettelInsertTagLink call zettel#insertTagLink()
 command! ZettelDeleteTag call zettel#deleteTag()
 command! ZettelListTagLinks call zettel#listTagLinks()
 command! ZettelListTagsInThisFile call zettel#listTagsInThisFile()
+command! ZettelListTagLinksToATag call zettel#listTagLinksToATag()
 
 
 
