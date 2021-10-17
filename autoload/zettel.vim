@@ -601,12 +601,20 @@ function s:HandleTagSelectionToListTagLinks(sourceline) abort
 endfunction
 
 
+function s:IntializeAutoupdate() abort
+  augroup zettel_autoupdate_tags
+    " default fzf is vsplit, tab split, split, e
+    autocmd BufEnter * call zettel#autoupdate#createTagMarkerDict()
+  augroup END
+endfunction
+
 
 " Autoload functions to be called in plugin/zettel.vim
 function! zettel#initialize() abort
   call mkdir(g:zettel_root, "p")
   call s:LoadTagsFromTagsloc()
   call s:CreateTagFile(g:zettel_unscoped_tagfile_name, {}, 0)
+  call s:IntializeAutoupdate()
 endfunction
 
 
