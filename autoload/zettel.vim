@@ -506,6 +506,7 @@ endfunction
 
 
 function s:RunFZFToDisplayTags(source, Sink, is_sinklist=0) abort
+  call zettel#autoupdate#updateFiles()
   call zettel#utils#throwErrorIfNoFZF()
   let l:preview_cmd = "cat -n {5}"
   if executable("bat")
@@ -533,6 +534,7 @@ function s:RunFZFToDisplayTags(source, Sink, is_sinklist=0) abort
 	endif
 
   call fzf#run(fzf#wrap(l:fzf_kwargs))
+  call zettel#autoupdate#loadMarkerDicts()
 endfunction
 
 
@@ -604,7 +606,8 @@ endfunction
 function s:IntializeAutoupdate() abort
   augroup zettel_autoupdate_tags
     " default fzf is vsplit, tab split, split, e
-    autocmd BufEnter * call zettel#autoupdate#createTagMarkerDict()
+    autocmd BufEnter * call zettel#autoupdate#loadMarkerDicts()
+    autocmd BufLeave * call zettel#autoupdate#updateFiles()
   augroup END
 endfunction
 
@@ -633,12 +636,14 @@ function! zettel#insertTag(...) abort
   " Function that inserts a tag into a tag file
   " - a.000[0]  : @path/to/tagfile | tagfile/tagname | tagname
   " - a.000[1:] : {fieldname}={fieldvalue}
+  call zettel#autoupdate#updateFiles()
   let l:tag_path = s:GetTagPath(a:000)
   let [l:tagname, l:stub_path_to_tagfile] = s:GetTagNameAndTagFileStub(l:tag_path)
   let l:position = s:GetCurrentPosition() " [line, col, filename]
   let l:default_overrides = s:GetDefaultOverrides(a:000)
   let l:tag_line = s:GetTagLine(l:tagname, l:position, l:default_overrides)
   call s:InsertTagLine(l:tagname, l:tag_line, l:stub_path_to_tagfile)
+  call zettel#autoupdate#loadMarkerDicts()
 endfunction
 
 
@@ -668,12 +673,15 @@ endfunction
 
 
 function! zettel#listTagLinks() abort
+  call zettel#autoupdate#updateFiles()
 	let l:taglink_lines = zettel#utils#getAllTagLinkLines()
 	call fzf#run(fzf#wrap({"source":l:taglink_lines, "sink": function("s:HandleJumpToTaglink")}))
+  call zettel#autoupdate#loadMarkerDicts()
 endfunction
 
 
 function! zettel#tagLinkJump() abort
+  call zettel#autoupdate#updateFiles()
   let l:line = getline(".")
   let l:col = getpos(".")[2]
   let l:matches = s:GetTagLinkMatches(l:line)
@@ -708,6 +716,7 @@ function! zettel#tagLinkJump() abort
     let l:selected_taglink = l:selected_taglink[0][0]
   endif
   return s:JumpFromTagLink(l:selected_taglink)
+  call zettel#autoupdate#loadMarkerDicts()
 endfunction
 
 
