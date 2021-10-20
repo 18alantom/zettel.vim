@@ -7,7 +7,20 @@
 let s:plugin_name = "zettel.vim"
 
 
-function zettel#utils#throwErrorIfNoFZF() abort
+function! zettel#utils#getLocCommand(line, col)
+  return "call cursor(" .. a:line .. "," .. a:col .. ')|;"'
+endfunction
+
+
+function! zettel#utils#getPosFromLocCommand(loc_command) abort
+  " loc_command includes the '|;"' term
+  let l:pos = split(a:loc_command[12:-5], ",")
+  let l:pos = map(l:pos, "str2nr(v:val)") " Cast to number
+  return l:pos
+endfunction
+
+
+function! zettel#utils#throwErrorIfNoFZF() abort
   let l:has_fzf = exists("g:loaded_fzf") && g:loaded_fzf
   if !l:has_fzf
     echoerr s:plugin_name .. " : fzf not found"
@@ -15,7 +28,7 @@ function zettel#utils#throwErrorIfNoFZF() abort
 endfunction
 
 
-function zettel#utils#getUniqueItems(list)
+function! zettel#utils#getUniqueItems(list) abort
   " Return a set of unique items in a list
   " Uniq wasn't working in some cases
   let l:uniquelist = []
@@ -28,7 +41,7 @@ function zettel#utils#getUniqueItems(list)
 endfunction
 
 
-function zettel#utils#getPaddedStr(str, amt, right=1)
+function! zettel#utils#getPaddedStr(str, amt, right=1) abort
   " Add left ' ' padding to a string
   let l:pad = repeat(' ', a:amt - len(a:str))
   if a:right
@@ -38,7 +51,7 @@ function zettel#utils#getPaddedStr(str, amt, right=1)
 endfunction
 
 
-function zettel#utils#getScrubbedStr(str)
+function! zettel#utils#getScrubbedStr(str) abort
   " Strip whitespaces and subs tabs
   let l:scrubbed = trim(a:str)
   let l:scrubbed = substitute(l:scrubbed, "\t", "\s", "g")
@@ -46,7 +59,7 @@ function zettel#utils#getScrubbedStr(str)
 endfunction
 
 
-function zettel#utils#getSplitLine(line, delim)
+function! zettel#utils#getSplitLine(line, delim) abort
   " Split the given line at the delimiter
   let l:parts = split(a:line, a:delim)
   let l:parts = map(l:parts, "trim(v:val)")
@@ -55,7 +68,7 @@ function zettel#utils#getSplitLine(line, delim)
 endfunction
 
 
-function zettel#utils#getCurrentPosition() abort
+function! zettel#utils#getCurrentPosition() abort
   " Returns the line, column, and absolute path
   let [l:line, l:col] = getpos(".")[1:-2]
   let l:abs_file_path = expand("%:p")
@@ -68,13 +81,13 @@ function zettel#utils#getCurrentPosition() abort
 endfunction
 
 
-function zettel#utils#getScrubbedRelativePath(path)
+function! zettel#utils#getScrubbedRelativePath(path) abort
   " Removes relativeness of a path, returns stub
   return substitute(a:path, '[.~]\+/', "", "")
 endfunction
 
 
-function zettel#utils#removeZettelRootFromPath(path)
+function! zettel#utils#removeZettelRootFromPath(path) abort
   " Removes g:zettel_root from the path
   " if it matches.
   let l:rootlen = len(g:zettel_root)
@@ -89,7 +102,7 @@ function zettel#utils#removeZettelRootFromPath(path)
 endfunction
 
 
-function zettel#utils#getAbsolutePath(path, prepend_root=0)
+function! zettel#utils#getAbsolutePath(path, prepend_root=0) abort
   " Convert a relative (~/, ./, ../) path to absolute
   " If prepend_root prepends g:zettel_root to paths
   " of the form 'path/to/file'
@@ -119,10 +132,9 @@ function zettel#utils#getAbsolutePath(path, prepend_root=0)
 endfunction
 
 
-function zettel#utils#getRelativePath(path)
+function! zettel#utils#getRelativePath(path) abort
   " Removes g:zettel_root from the path
   " Converts absolute paths to relative
-  " TODO : return [..] relative path
   
   let l:rootlen = len(g:zettel_root)
   let l:pathstub = a:path[l:rootlen:]

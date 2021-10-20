@@ -257,8 +257,8 @@ endfunction
 function s:GetTagLine(tagname, position, default_overrides) abort
   let [l:line, l:col, l:abs_file_path] = a:position
   " tagname {TAB} file path {TAB} tagaddress|;" {field}
-  let l:tagaddress_and_term = "call cursor(" . l:line . "," . l:col . ')|;"'
-  let l:tagline = join([a:tagname, l:abs_file_path, l:tagaddress_and_term], "\t")
+  let l:loc_command = zettel#utils#getLocCommand(l:line, l:col)
+  let l:tagline = join([a:tagname, l:abs_file_path, l:loc_command], "\t")
 
   for k in keys(a:default_overrides)
     let l:field = k . ":" . a:default_overrides[k]
@@ -506,7 +506,6 @@ endfunction
 
 
 function s:RunFZFToDisplayTags(source, Sink, is_sinklist=0) abort
-  call zettel#autoupdate#updateFiles()
   call zettel#utils#throwErrorIfNoFZF()
   let l:preview_cmd = "cat -n {5}"
   if executable("bat")
@@ -534,14 +533,14 @@ function s:RunFZFToDisplayTags(source, Sink, is_sinklist=0) abort
 	endif
 
   call fzf#run(fzf#wrap(l:fzf_kwargs))
-  call zettel#autoupdate#loadMarkerDicts()
 endfunction
 
 
 function s:HandleJumpToTaglink(taglink_line) abort
 	let l:parts = zettel#utils#getSplitLine(a:taglink_line, "\t")
 	let l:abs_path_to_file = l:parts[0]
-	let l:loc_command = "call cursor("..join(split(l:parts[1], ":"), ",")..")"
+  let [l:line, l:col] = split(l:parts[1], ":")
+  let l:loc_command = zettel#utils#getLocCommand(l:line, l:col)
 	call s:JumpToLocation(l:abs_path_to_file, l:loc_command)
 endfunction
 
@@ -648,27 +647,32 @@ endfunction
 
 
 function! zettel#listTags() abort
+  call zettel#autoupdate#updateFiles()
   let l:tag_lines = zettel#utils#getAllTagLines()
   let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
   let l:Sink = function("s:HandleTagJump", [l:tag_lines])
 	call s:RunFZFToDisplayTags(l:source, l:Sink, 0)
-	return
+  call zettel#autoupdate#loadMarkerDicts()
 endfunction
 
 
 function! zettel#insertTagLink() abort
+  call zettel#autoupdate#updateFiles()
   let l:tag_lines = zettel#utils#getAllTagLines()
   let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
   let l:Sink = function("s:HandleTagLinkInsertion", [l:tag_lines])
 	call s:RunFZFToDisplayTags(l:source, l:Sink, 0)
+  call zettel#autoupdate#loadMarkerDicts()
 endfunction
 
 
 function! zettel#deleteTag() abort
+  call zettel#autoupdate#updateFiles()
   let l:tag_lines = zettel#utils#getAllTagLines()
   let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
   let l:Sink = function("s:HandleTagDeletion", [l:tag_lines])
 	call s:RunFZFToDisplayTags(l:source, l:Sink, 1)
+  call zettel#autoupdate#loadMarkerDicts()
 endfunction
 
 
@@ -715,24 +719,27 @@ function! zettel#tagLinkJump() abort
   else
     let l:selected_taglink = l:selected_taglink[0][0]
   endif
-  return s:JumpFromTagLink(l:selected_taglink)
   call zettel#autoupdate#loadMarkerDicts()
+  return s:JumpFromTagLink(l:selected_taglink)
 endfunction
 
 
 function! zettel#listTagsInThisFile() abort
+  call zettel#autoupdate#updateFiles()
   let l:this_file = expand("%:p")
   let l:tag_lines = zettel#utils#getAllTagLines({"filepath":l:this_file})
   let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
   let l:Sink = function("s:HandleTagJump", [l:tag_lines])
 	call s:RunFZFToDisplayTags(l:source, l:Sink, 0)
-	return
+  call zettel#autoupdate#loadMarkerDicts()
 endfunction
 
 
 function! zettel#listTagLinksToATag() abort
+  call zettel#autoupdate#updateFiles()
   let l:tag_lines = zettel#utils#getAllTagLines()
   let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
   let l:Sink = function("s:HandleTagSelectionToListTagLinks")
 	call s:RunFZFToDisplayTags(l:source, l:Sink, 0)
+  call zettel#autoupdate#loadMarkerDicts()
 endfunction

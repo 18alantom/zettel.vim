@@ -1,3 +1,7 @@
+" Filename: autoload/zettel/autoupdate.vim
+" Author:   18alantom
+" License:  MIT License
+
 " Autoupdation of Tags & Taglinks
 "
 " Keeps track of logical location of a tag | taglink
@@ -22,7 +26,8 @@
 "     'marker' : // this depends on whether neovim or vim
 "   }
 " }
-"
+ 
+ 
 function s:GetVimMarker(pos) abort
   " TODO: Complete this using text-properties
   return 0
@@ -74,13 +79,6 @@ function s:GetPosFromMarker(marker) abort
     return s:GetPosFromVimMarker(a:marker)
 endfunction
 
-function s:GetPosFromLocCommand(loc_command)
-  " loc_command format: 'call cursor(line,col)|;"'
-  let l:pos = split(a:loc_command[12:-5], ",")
-  let l:pos = map(l:pos, {i,v -> v + 0}) " Cast to number
-  return l:pos
-endfunction
-
 function s:GetMarkerDictKeyFromTagLineParts(parts)
   let l:stub_path_to_tagfile = zettel#utils#removeZettelRootFromPath(a:parts[2])
   let l:tagname = a:parts[3]
@@ -100,7 +98,7 @@ function s:SetMarkerDict(taglines) abort
       continue
     endif
 
-    let l:pos = s:GetPosFromLocCommand(l:parts[5])
+    let l:pos = zettel#utils#getPosFromLocCommand(l:parts[5])
     let l:marker = s:GetMarkerFromPos(l:pos)
 
     if !l:marker
@@ -194,7 +192,7 @@ function s:UpdateTagFile(update_dict) abort
         call add(l:lines_to_writeback, line)
       else
         let [l:line, l:col] = a:update_dict[key][l:tagname]
-        let l:loc_command = 'call cursor(' .. l:line .. ',' .. l:col .. '0|;"'
+        let l:loc_command = zettel#utils#getLocCommand(l:line, l:col)
         let l:updated_line = join([l:tagname, l:parts[1], l:loc_command] + l:parts[3:], "\t")
         call add(l:lines_to_writeback, l:updated_line)
       endif
