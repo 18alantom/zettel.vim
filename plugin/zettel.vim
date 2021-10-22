@@ -52,6 +52,10 @@ endfunction
 
 function s:OverloadCtrlSqBracket()
   let l:zettel_jump = zettel#tagLinkJump()
+  if l:zettel_jump == 2
+    return
+  endif
+
   if !l:zettel_jump
     execute "normal!\<C-]>"
   endif

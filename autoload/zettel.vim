@@ -582,6 +582,11 @@ endfunction
 function s:JumpFromTagLink(taglink) abort
 	let [l:stub_path_to_tagfile, l:tagname] = s:DestructureTagLink(a:taglink)
 	let l:tagline = s:GetTagLineFromTagFile(l:stub_path_to_tagfile, l:tagname)
+  if len(l:tagline) == 0
+    echoerr s:plugin_name .. " : tag pointed to by '" .. a:taglink .. "' has been deleted."
+    return 2
+  endif
+
 	let [l:abs_path_to_file, l:loc_command] = s:GetJumpLocationFromTagLine(l:tagline)
 	return s:JumpToLocationAndSetTagStack(l:tagname, l:abs_path_to_file, l:loc_command)
 endfunction
