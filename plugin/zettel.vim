@@ -11,7 +11,6 @@ let g:loaded_zettel = 1
 call zettel#initialize()
 
 
-
 " Commands
 command! -nargs=+ ZettelCreateNewTagFile
   \ call zettel#createNewTagFile(<f-args>)
@@ -20,10 +19,13 @@ command! -nargs=* -complete=customlist,s:GetCompletionInsertTag ZettelInsertTag
 command! ZettelListTags call zettel#listTags()
 command! ZettelInsertTagLink call zettel#insertTagLink()
 command! ZettelDeleteTag call zettel#deleteTag()
-command! ZettelListTagLinks call zettel#listTagLinks()
 command! ZettelListTagsInThisFile call zettel#listTagsInThisFile()
-command! ZettelListTagLinksToATag call zettel#listTagLinksToATag()
 
+if !g:zettel_dont_maintain_taglink_file
+  command! ZettelListTagLinks call zettel#listTagLinks()
+  command! ZettelListTagLinksToATag call zettel#listTagLinksToATag()
+  command! ZettelCleanTagLinkFile call zettel#cleanTagLinkFile()
+endif
 
 
 " Key Bindings
@@ -34,7 +36,6 @@ if !exists("g:zettel_prevent_default_bindings")
   nnoremap <unique> <leader>zd :ZettelDeleteTag<cr>
   nnoremap <silent> <C-]> :call <SID>OverloadCtrlSqBracket()<CR>
 endif
-
 
 
 " Internal Functions

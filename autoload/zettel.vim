@@ -29,6 +29,11 @@ if !exists("g:zettel_confirm_before_overwrite")
 	let g:zettel_confirm_before_overwrite = 0
 endif
 
+if !exists("g:zettel_dont_maintain_taglink_file")
+	let g:zettel_dont_maintain_taglink_file = 0
+endif
+
+
 
 " Tag Headers and Meta Data
 let s:plugin_name = "zettel.vim"
@@ -466,7 +471,9 @@ function s:HandleTagDeletion(tag_lines, sourcelines) abort
   endfor
 
 	let l:all_taglinks = zettel#utils#getUniqueItems(l:all_taglinks)
-  call s:DeleteTagLinkLineByTaglinks(l:all_taglinks)
+  if !g:zettel_dont_maintain_taglink_file
+    call s:DeleteTagLinkLineByTaglinks(l:all_taglinks)
+  endif
 endfunction
 
 
@@ -501,7 +508,9 @@ function s:HandleTagLinkInsertion(tag_lines, sourceline) abort
 	let l:taglink = s:GetTagLink(l:stub_path_to_tagfile, l:tagname)
 	let l:taglink = s:GetFormattedTagLink(l:taglink)
 	call s:InsertTagLink(l:taglink)
-  call s:InsertTagLinkIntoLinkFile(l:taglink)
+  if !g:zettel_dont_maintain_taglink_file
+    call s:InsertTagLinkIntoLinkFile(l:taglink)
+  endif
 endfunction
 
 
@@ -611,8 +620,72 @@ function s:IntializeAutoupdate() abort
   augroup zettel_autoupdate_tags
     " default fzf is vsplit, tab split, split, e
     autocmd BufEnter * call zettel#autoupdate#loadMarkerDicts()
-    autocmd BufLeave * call zettel#autoupdate#updateFiles()
+    autocmd BufLeave,BufUnload * call zettel#autoupdate#updateFiles()
   augroup END
+endfunction
+
+
+function s:GetTagLinksGroupedByFile(filters={}) abort
+  " file_dict = {
+  "   'abs_path_to_file': [
+  "     {
+  "       'pos': taglink_pos,
+  "       'taglink': taglink
+  "     }, ...
+  "   ]
+  " }
+  let l:file_dict = {}
+  for line in zettel#utils#getAllTagLinkLines(a:filters)
+    let l:parts = zettel#utils#getSplitLine(line, "\t")
+    if !has_key(l:file_dict, l:parts[0])
+      let l:file_dict[l:parts[0]] = []
+    endif
+
+    let l:taglink_dict = {"pos":l:parts[1], "taglink":l:parts[2]}
+    call add(l:file_dict[l:parts[0]], l:taglink_dict)
+  endfor
+  return l:file_dict
+endfunction
+
+
+function s:SetDeleteFlag(file_dict) abort
+  for key in keys(a:file_dict)
+    let l:filelines = readfile(key)
+
+    for i in range(len(a:file_dict[key]))
+      let l:pos = a:file_dict[key][i]["pos"]
+      let l:taglink = a:file_dict[key][i]["taglink"]
+
+      let l:lineno = str2nr(split(l:pos, ":")[0])
+      let l:line = l:filelines[l:lineno - 1]
+
+      let [l:stub_path_to_tagfile, l:tagname] = s:DestructureTagLink(l:taglink)
+      let l:tagline = s:GetTagLineFromTagFile(l:stub_path_to_tagfile, l:tagname)
+
+      if match(l:line, l:taglink) == -1 || len(l:tagline) == 0
+        let a:file_dict[key][i]["delete"] = 1
+      else
+        let a:file_dict[key][i]["delete"] = 0
+      endif
+    endfor
+  endfor
+endfunction
+
+
+function s:WritebackTagLinkLines(file_dict) abort
+  let l:lines_to_writeback = []
+  for key in keys(a:file_dict)
+    for line in a:file_dict[key]
+      if line["delete"] == 1
+        continue
+      endif
+
+      let l:taglink_line = join([key, line["pos"], line["taglink"]], "\t")
+      call add(l:lines_to_writeback, l:taglink_line)
+    endfor
+  endfor
+
+  call writefile(l:lines_to_writeback, g:zettel_tagslink_path)
 endfunction
 
 
@@ -746,5 +819,14 @@ function! zettel#listTagLinksToATag() abort
   let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
   let l:Sink = function("s:HandleTagSelectionToListTagLinks")
 	call s:RunFZFToDisplayTags(l:source, l:Sink, 0)
+  call zettel#autoupdate#loadMarkerDicts()
+endfunction
+
+
+function! zettel#cleanTagLinkFile() abort
+  call zettel#autoupdate#updateFiles()
+  let l:file_dict = s:GetTagLinksGroupedByFile()
+  call s:SetDeleteFlag(l:file_dict)
+  call s:WritebackTagLinkLines(l:file_dict)
   call zettel#autoupdate#loadMarkerDicts()
 endfunction

@@ -14,6 +14,7 @@ ZETTEL - INDEX                                         *zettel* *zettel-index*
   - |ZettelListTagLinks|
   - |ZettelListTagsInThisFile|
   - |ZettelListTagLinksToATag|
+  - |ZettelCleanTagLinkFile|
 - |zettel-key-bindings|
 - |zettel-field-values|
 - |zettel-implementation|
@@ -133,6 +134,11 @@ using <C-]> keybinding unless |g:zettel_prevent_default_bindings| is set to 1.
   format: `:ZettelListTagLinksToATag`
 
 
+*ZettelCleanTagLinkFile*
+  Deletes taglinks with dead references from the taglink file.
+
+  format: `:ZettelCleanTagLinkFile`
+
 
 ==============================================================================
 ZETTEL - KEY BINDINGS                                    *zettel-key-bindings*
@@ -212,6 +218,12 @@ override default behaviour.
 *g:zettel_confirm_before_overwrite*
   If a duplicate tag is found in a tagfile, setting this to 1 will cause zettel
   to confirm before overwriting it.
+
+  default: `0`
+
+
+*g:zettel_dont_maintain_taglink_file*
+  If set to 1, a taglink file isn't maintained.
 
   default: `0`
 

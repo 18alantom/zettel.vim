@@ -139,6 +139,10 @@ Opens an *FZF* window listing all the tags, on selecting a tag a new *FZF* windo
 opens up showing all the taglinks that link to the selected tag.
 - **format** — `:ZettelListTagLinksToATag`
 
+#### `ZettelCleanTagLinkFile`
+Deletes taglinks with dead references from the taglink file.
+- **format** — `:ZettelCleanTagLinkFile`
+
 ## Global Variables
 List of global variables used by `zettel.vim` that can be changed in the `.vimrc` to override default
 behaviour.
@@ -150,7 +154,8 @@ behaviour.
 | `g:zettel_unscoped_tagfile_name` | `tags` | Location of tags where a tag file isn't provided on insertion. |
 | `g:zettel_default_field_togit`| `1` | Used to set tag file level `togit` field value. |
 | `g:zettel_taglink_prefix`| `"z://"` | Used to identify a taglink by prefixing it.|
-|`g:zettel_confirm_before_overwrite`| `0` | If a duplicate tag is found in a tagfile, setting this to 1 will cause zettel to confirm before overwriting it.|
+| `g:zettel_confirm_before_overwrite`| `0` | If a duplicate tag is found in a tagfile, setting this to 1 will cause zettel to confirm before overwriting it.|
+| `g:zettel_dont_maintain_taglink_file`| `0` | If set to 1, a taglink file isn't maintained.|
 
 ## Field Values
 These are key value pairs set for each tag file or tag.
@@ -163,5 +168,15 @@ where `togit` is set to 1 will be added unless overridden by a tag level
 *This hasn't been implemented yet.*
 
 ---
+
+_**Buggy Stuff**: auto-updation of tag and taglink positions takes in `neovim` using
+the `extended-marks` feature, this is a bit buggy, i.e. the changes in position may not
+track exactly. For tags this is not much of an issue as they are unique and
+adding a new tag will overwrite the previous one. For taglinks this will be a
+bit of an issue since taglinks aren't unique. You can either use
+`ZettelCleanTagLinkFile` or set `g:zettel_dont_maintain_taglink_file` to 1 to
+not keep an external record of taglinks (you can still use them)._
+
+_**TODO**: use the `text-properties` API and add autoupdate to Vim._
 
 For more info type `:h zettel` in vim.
