@@ -47,7 +47,11 @@ function s:GetCompletionInsertTag(arg_lead, cmd_line, cursor_pos)
     endif
     call add(l:tags, zettel#utils#getRelativePath(t))
   endfor
-  return uniq(l:tags)
+  let l:tags = uniq(l:tags)
+  if len(a:arg_lead) > 0
+    let l:tags = filter(l:tags, {i,v -> match(v, '^' .. a:arg_lead) == 0})
+  endif
+  return l:tags
 endfunction
 
 
