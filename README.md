@@ -79,9 +79,12 @@ let g:zettel_prevent_default_bindings = 1
 If you don't want to use the default bindings but still keep the `Ctrl-]`
 behaviour then add this to your `.vimrc`:
 ```vim
-let g:zettel_prevent_default_bindings = 1
 function s:OverloadCtrlSqBracket()
   let l:zettel_jump = zettel#tagLinkJump()
+  if l:zettel_jump == 2
+    return
+  endif
+
   if !l:zettel_jump
     execute "normal!\<C-]>"
   endif
@@ -155,7 +158,6 @@ behaviour.
 | `g:zettel_default_field_togit`| `1` | Used to set tag file level `togit` field value. |
 | `g:zettel_taglink_prefix`| `"z://"` | Used to identify a taglink by prefixing it.|
 | `g:zettel_confirm_before_overwrite`| `0` | If a duplicate tag is found in a tagfile, setting this to 1 will cause zettel to confirm before overwriting it.|
-| `g:zettel_dont_maintain_taglink_file`| `0` | If set to 1, a taglink file isn't maintained.|
 
 ## Field Values
 These are key value pairs set for each tag file or tag.
@@ -168,14 +170,6 @@ where `togit` is set to 1 will be added unless overridden by a tag level
 *This hasn't been implemented yet.*
 
 ---
-
-_**Buggy Stuff**: auto-updation of tag and taglink positions takes in `neovim` using
-the `extended-marks` feature, this is a bit buggy, i.e. the changes in position may not
-track exactly. For tags this is not much of an issue as they are unique and
-adding a new tag will overwrite the previous one. For taglinks this will be a
-bit of an issue since taglinks aren't unique. You can either use
-`ZettelCleanTagLinkFile` or set `g:zettel_dont_maintain_taglink_file` to 1 to
-not keep an external record of taglinks (you can still use them)._
 
 _**TODO**: use the `text-properties` API and add autoupdate to Vim._
 

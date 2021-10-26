@@ -222,12 +222,6 @@ override default behaviour.
   default: `0`
 
 
-*g:zettel_dont_maintain_taglink_file*
-  If set to 1, a taglink file isn't maintained.
-
-  default: `0`
-
-
 ==============================================================================
 ZETTEL - FIELD VALUES                                    *zettel-field-values*
 

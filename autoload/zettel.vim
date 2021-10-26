@@ -29,10 +29,6 @@ if !exists("g:zettel_confirm_before_overwrite")
 	let g:zettel_confirm_before_overwrite = 0
 endif
 
-if !exists("g:zettel_dont_maintain_taglink_file")
-	let g:zettel_dont_maintain_taglink_file = 0
-endif
-
 
 
 " Tag Headers and Meta Data
@@ -51,9 +47,8 @@ let s:tag_file_headers = [
 \]
 
 let s:tagsloc_path = g:zettel_root . "/" . "tagsloc.txt"
-let s:taglink_pattern = '\<' .. g:zettel_taglink_prefix .. '\%(\w\|[-/]\)\+'
 let g:zettel_tagslink_path = g:zettel_root . "/" . "tagslink.txt"
-
+let g:zettel_taglinkcache_path = g:zettel_root .. "/" .. ".taglinks.txt"
 
 
 " Functions
@@ -426,10 +421,10 @@ function s:GetTagLink(stub_path_to_tagfile, tagname)
 endfunction
 
 
-function s:DeleteTagLinkLineByTaglinks(taglinks) abort
-  let l:tagslink_lines = readfile(g:zettel_tagslink_path)
+function s:DeleteTagLinkLineByTaglinksFromCache(taglinks) abort
+  let l:tagslink_lines = readfile(g:zettel_taglinkcache_path)
   let l:lines_to_writeback = filter(l:tagslink_lines, {i,v -> index(a:taglinks, split(v, "\t")[2])==-1})
-  call writefile(l:lines_to_writeback, g:zettel_tagslink_path)
+  call writefile(l:lines_to_writeback, g:zettel_taglinkcache_path)
 endfunction
 
 
@@ -471,29 +466,12 @@ function s:HandleTagDeletion(tag_lines, sourcelines) abort
   endfor
 
 	let l:all_taglinks = zettel#utils#getUniqueItems(l:all_taglinks)
-  if !g:zettel_dont_maintain_taglink_file
-    call s:DeleteTagLinkLineByTaglinks(l:all_taglinks)
-  endif
-endfunction
-
-
-function s:GetFormattedTagLink(taglink)
-	" Probably change this if markdown file
-	return a:taglink
+  call s:DeleteTagLinkLineByTaglinksFromCache(l:all_taglinks)
 endfunction
 
 
 function s:InsertTagLink(taglink)
 	execute "normal! a" .. a:taglink .. "\<ESC>"
-endfunction
-
-
-function s:InsertTagLinkIntoLinkFile(taglink) abort
-  " format: 'abs_path_to_file_with_taglink {TAB} line:col {TAB} taglink
-  let [l:line, l:col, l:filepath] = s:GetCurrentPosition() " [line, col, filename]
-  let l:cursor_pos = l:line .. ":" .. l:col
-	let l:linkline = join([l:filepath, l:cursor_pos, a:taglink], "\t")
-  call writefile([l:linkline], g:zettel_tagslink_path, "a")
 endfunction
 
 
@@ -506,11 +484,8 @@ function s:HandleTagLinkInsertion(tag_lines, sourceline) abort
 	let l:abs_path_to_tagfile = l:parts[2]
 	let l:stub_path_to_tagfile = zettel#utils#removeZettelRootFromPath(l:abs_path_to_tagfile)
 	let l:taglink = s:GetTagLink(l:stub_path_to_tagfile, l:tagname)
-	let l:taglink = s:GetFormattedTagLink(l:taglink)
 	call s:InsertTagLink(l:taglink)
-  if !g:zettel_dont_maintain_taglink_file
-    call s:InsertTagLinkIntoLinkFile(l:taglink)
-  endif
+  call zettel#taglinks#updateTagLinkLoc(expand("%:p"))
 endfunction
 
 
@@ -551,13 +526,6 @@ function s:HandleJumpToTaglink(taglink_line) abort
   let [l:line, l:col] = split(l:parts[1], ":")
   let l:loc_command = zettel#utils#getLocCommand(l:line, l:col)
 	call s:JumpToLocation(l:abs_path_to_file, l:loc_command)
-endfunction
-
-
-function s:GetTagLinkMatches(line) abort
-  let taglink_matches = []
-  call substitute(a:line, s:taglink_pattern, '\=add(taglink_matches, submatch(0))', 'g')
-  return taglink_matches
 endfunction
 
 
@@ -611,7 +579,7 @@ endfunction
 
 function s:HandleTagSelectionToListTagLinks(sourceline) abort
   let l:taglink = s:GetTagLinkFromSourceLine(a:sourceline)
-  let l:taglink_lines = zettel#utils#getAllTagLinkLines({"taglink":l:taglink})
+  let l:taglink_lines = zettel#taglinks#getAllTagLinkLines({"taglink":l:taglink})
 	call fzf#run(fzf#wrap({"source":l:taglink_lines, "sink": function("s:HandleJumpToTaglink")}))
 endfunction
 
@@ -622,70 +590,6 @@ function s:IntializeAutoupdate() abort
     autocmd BufEnter * call zettel#autoupdate#loadMarkerDicts()
     autocmd BufLeave,BufUnload * call zettel#autoupdate#updateFiles()
   augroup END
-endfunction
-
-
-function s:GetTagLinksGroupedByFile(filters={}) abort
-  " file_dict = {
-  "   'abs_path_to_file': [
-  "     {
-  "       'pos': taglink_pos,
-  "       'taglink': taglink
-  "     }, ...
-  "   ]
-  " }
-  let l:file_dict = {}
-  for line in zettel#utils#getAllTagLinkLines(a:filters)
-    let l:parts = zettel#utils#getSplitLine(line, "\t")
-    if !has_key(l:file_dict, l:parts[0])
-      let l:file_dict[l:parts[0]] = []
-    endif
-
-    let l:taglink_dict = {"pos":l:parts[1], "taglink":l:parts[2]}
-    call add(l:file_dict[l:parts[0]], l:taglink_dict)
-  endfor
-  return l:file_dict
-endfunction
-
-
-function s:SetDeleteFlag(file_dict) abort
-  for key in keys(a:file_dict)
-    let l:filelines = readfile(key)
-
-    for i in range(len(a:file_dict[key]))
-      let l:pos = a:file_dict[key][i]["pos"]
-      let l:taglink = a:file_dict[key][i]["taglink"]
-
-      let l:lineno = str2nr(split(l:pos, ":")[0])
-      let l:line = l:filelines[l:lineno - 1]
-
-      let [l:stub_path_to_tagfile, l:tagname] = s:DestructureTagLink(l:taglink)
-      let l:tagline = s:GetTagLineFromTagFile(l:stub_path_to_tagfile, l:tagname)
-
-      if match(l:line, l:taglink) == -1 || len(l:tagline) == 0
-        let a:file_dict[key][i]["delete"] = 1
-      else
-        let a:file_dict[key][i]["delete"] = 0
-      endif
-    endfor
-  endfor
-endfunction
-
-
-function s:WritebackTagLinkLines(file_dict) abort
-  let l:lines_to_writeback = []
-  for key in keys(a:file_dict)
-    for line in a:file_dict[key]
-      if line["delete"] == 1
-        continue
-      endif
-
-      let l:taglink_line = join([key, line["pos"], line["taglink"]], "\t")
-      call add(l:lines_to_writeback, l:taglink_line)
-    endfor
-  endfor
-
-  call writefile(l:lines_to_writeback, g:zettel_tagslink_path)
 endfunction
 
 
@@ -756,7 +660,7 @@ endfunction
 
 function! zettel#listTagLinks() abort
   call zettel#autoupdate#updateFiles()
-	let l:taglink_lines = zettel#utils#getAllTagLinkLines()
+	let l:taglink_lines = zettel#taglinks#getAllTagLinkLines()
 	call fzf#run(fzf#wrap({"source":l:taglink_lines, "sink": function("s:HandleJumpToTaglink")}))
   call zettel#autoupdate#loadMarkerDicts()
 endfunction
@@ -766,7 +670,7 @@ function! zettel#tagLinkJump() abort
   call zettel#autoupdate#updateFiles()
   let l:line = getline(".")
   let l:col = getpos(".")[2]
-  let l:matches = s:GetTagLinkMatches(l:line)
+  let l:matches = zettel#taglinks#getTagLinkMatches(l:line)
   if len(l:matches) == 0
     return 0
   endif
@@ -819,14 +723,5 @@ function! zettel#listTagLinksToATag() abort
   let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
   let l:Sink = function("s:HandleTagSelectionToListTagLinks")
 	call s:RunFZFToDisplayTags(l:source, l:Sink, 0)
-  call zettel#autoupdate#loadMarkerDicts()
-endfunction
-
-
-function! zettel#cleanTagLinkFile() abort
-  call zettel#autoupdate#updateFiles()
-  let l:file_dict = s:GetTagLinksGroupedByFile()
-  call s:SetDeleteFlag(l:file_dict)
-  call s:WritebackTagLinkLines(l:file_dict)
   call zettel#autoupdate#loadMarkerDicts()
 endfunction

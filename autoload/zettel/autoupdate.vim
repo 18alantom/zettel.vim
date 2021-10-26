@@ -2,19 +2,18 @@
 " Author:   18alantom
 " License:  MIT License
 
-" Autoupdation of Tags & Taglinks
+" Autoupdation of Tags
 "
-" Keeps track of logical location of a tag | taglink
-" so that when it changes the references in tag and
-" taglink files can be updated.
+" Keeps track of logical location of a tag so that
+" when it changes the references in tag and files
+" can be updated.
 "
-" When a buffer is opened to a file load all tags,
-" taglinks and assign a marker (nvim: extended_mark)
-" to them.
+" When a buffer is opened to a file load all tags
+" and assign a marker (nvim: extended_mark) to them.
 "
 " Marker will keep track of the location. Using the
-" marker the updated location of the tag | taglink
-" can be obtained.
+" marker the updated location of the tag can be
+" obtained.
 "
 " When a buffer is being left or closed If the location
 " has changed then writeback the new line:col to the
@@ -24,14 +23,9 @@
 "   'tags' : {
 "     'tagfile/tagname' : {
 "       'pos' : [line, col] // from the tagfile
-"       'marker' : marker_id // this depends on whether neovim or vim
+"       'marker' : marker_id // this depends on *vim
 "     }
-"   },
-"   'taglinks' : {
-"     '??' : {
-"       'pos' : [line, col] // from the tagfile
-"       'marker' : marker_id // this depends on whether neovim or vim
-"     }
+"   }
 " }
  
  
@@ -100,14 +94,6 @@ function s:GetMarkerDictKeyFromTagLineParts(parts)
 endfunction
 
 
-function s:GetMarkerDictKeyFromTagLinkLineParts(parts)
-  " Format : z://tagfile/tagname@line:col
-  let l:loc = a:parts[1]
-  let l:taglink = a:parts[2]
-  return l:taglink .. "@" .. l:loc
-endfunction
-
-
 function s:SetMarkerDictDetails(lines, mkey)
   " Update dict with tags
   for line in a:lines
@@ -117,7 +103,7 @@ function s:SetMarkerDictDetails(lines, mkey)
     if a:mkey == "tags"
       let l:key = s:GetMarkerDictKeyFromTagLineParts(l:parts)
     else
-      let l:key = s:GetMarkerDictKeyFromTagLinkLineParts(l:parts)
+      return
     endif
 
     if has_key(b:zettel_marker_dict[a:mkey], l:key)
@@ -128,7 +114,7 @@ function s:SetMarkerDictDetails(lines, mkey)
     if a:mkey == "tags"
       let l:pos = zettel#utils#getPosFromLocCommand(l:parts[5])
     else
-      let l:pos = map(split(l:parts[1], ":"), "str2nr(v:val)")
+      return
     endif
 
     let l:marker = s:GetMarkerFromPos(l:pos)
@@ -137,16 +123,6 @@ function s:SetMarkerDictDetails(lines, mkey)
     endif
     let b:zettel_marker_dict[a:mkey][l:key] = {"pos":l:pos, "marker":l:marker}
   endfor
-endfunction
-
-
-function s:GetDeleteFlag(key, newpos)
-  " will set 'delete':1 for taglinks
-  " that aren't present on or around their lines
-  " have a global flag for taglink autodeletion use this only if that is set
-  " else calling <leader>zd should first scan the line for taglinks
-  " this should check the markerdict for exact position then delete that line
-  return 0
 endfunction
 
 
@@ -169,11 +145,6 @@ function s:UpdateMarkerDictWithUpdateDetails(mkey) abort
     if l:oldline != l:line || (l:oldcol != l:col && l:col != 0)
       let b:zettel_marker_dict[a:mkey][key]["writeback"] = 1
       let b:zettel_marker_dict[a:mkey][key]["newpos"] = [l:line, l:col]
-    endif
-
-    if a:mkey == "taglinks"
-      let l:delete = s:GetDeleteFlag(key, l:pos)
-      let b:zettel_marker_dict[a:mkey][key]["delete"] = l:delete
     endif
   endfor
 endfunction
@@ -206,28 +177,6 @@ function s:GetTagFileUpdateDict() abort
 
     let [l:line, l:col] = b:zettel_marker_dict["tags"][key]["newpos"]
     let l:update_dict[l:stub_path_to_tagfile][l:tagname] = [l:line, l:col]
-  endfor
-
-  return l:update_dict
-endfunction
-
-
-function s:GetTagLinkFileUpdateDict() abort
-  "
-  " l:update_dict = {
-  "   'z://tagfile_x/tagname_y@line_0:col_0' : [newline_0, newcol_0, delete],
-  "   ...
-  " }
-  let l:update_dict = {}
-  for key in keys(b:zettel_marker_dict["taglinks"])
-    if !b:zettel_marker_dict["taglinks"][key]["writeback"]
-      continue
-    endif
-
-    let l:newpos = b:zettel_marker_dict["taglinks"][key]["newpos"]
-    let l:delete = b:zettel_marker_dict["taglinks"][key]["delete"]
-
-    let l:update_dict[key] = l:newpos + [l:delete]
   endfor
 
   return l:update_dict
@@ -273,63 +222,26 @@ function s:UpdateTagFile(update_dict) abort
 endfunction
 
 
-function s:UpdateTagLinkFile(update_dict) abort
-  let l:lines_to_writeback = []
-  for line in readfile(g:zettel_tagslink_path)
-    let l:parts = zettel#utils#getSplitLine(line, "\t")
-    let l:key = s:GetMarkerDictKeyFromTagLinkLineParts(l:parts)
-
-    if !has_key(a:update_dict, l:key)
-      call add(l:lines_to_writeback, line)
-      continue
-    endif
-
-    let [l:newline, l:newcol, l:delete] = a:update_dict[l:key]
-    if l:delete
-      continue
-    endif
-
-    let l:loc = l:newline .. ":" .. l:newcol
-    let l:rep_line = join([l:parts[0], l:loc, l:parts[2]], "\t")
-    call add(l:lines_to_writeback, l:rep_line)
-  endfor
-
-  call writefile(l:lines_to_writeback, g:zettel_tagslink_path)
-endfunction
-
-
 function s:LoadMarkerDict(abs_file_path) abort
   let l:taglines = zettel#utils#getAllTagLines({"filepath":a:abs_file_path})
-  let l:taglink_lines = zettel#utils#getAllTagLinkLines({"filepath":a:abs_file_path})
 
   if !exists("b:zettel_marker_dict")
-    let b:zettel_marker_dict = {"tags":{}, "taglinks":{}}
+    let b:zettel_marker_dict = {"tags":{}}
   endif
 
   " Update dict with tags
   call s:SetMarkerDictDetails(l:taglines, "tags")
-
-  if !g:zettel_dont_maintain_taglink_file
-    call s:SetMarkerDictDetails(l:taglink_lines, "taglinks")
-  endif
 endfunction
 
 
 function s:UpdateFilesWithMarkerDict() abort
-  if !exists("b:zettel_marker_dict") || (len(b:zettel_marker_dict["tags"]) == 0 && len(b:zettel_marker_dict["taglinks"]) == 0)
+  if !exists("b:zettel_marker_dict") || len(b:zettel_marker_dict["tags"]) == 0
     return
   endif
 
   call s:UpdateMarkerDictWithUpdateDetails("tags")
   let l:tagfile_update_dict = s:GetTagFileUpdateDict()
   call s:UpdateTagFile(l:tagfile_update_dict)
-
-  if !g:zettel_dont_maintain_taglink_file
-    call s:UpdateMarkerDictWithUpdateDetails("taglinks")
-    let l:taglinkfile_update_dict = s:GetTagLinkFileUpdateDict()
-    call s:UpdateTagLinkFile(l:taglinkfile_update_dict)
-  endif
-
   unlet b:zettel_marker_dict
 endfunction
 
