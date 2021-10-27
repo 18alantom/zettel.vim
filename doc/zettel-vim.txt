@@ -262,11 +262,12 @@ Tags                                                             *zettel-tags*
   `tagname`s in a `tagfile` so that there is a 1:1 mapping between a taglink and
   its tag.
 
-  A `tagfile` should ideally be a single, short, easy to remember word.
+  A `tagfile` should ideally be a single, short, easy to remember word, but it
+  can also be a path stub delimited by '/'.
 
-  A `tagname` should be unique to a tagfile, can contain alphanumeric characters
-  and "-", "_". It may contain spaces too but will cause issues when creating
-  taglinks.
+  A `tagname` should be unique to a tagfile. It can contain alphanumeric
+  characters and "-", "_". It may contain spaces too but will cause issues when
+  creating taglinks.
 
   Locations of all tagfiles are maintained in the tagsloc.txt file at
   |g:zettel_root|. This file isn't necessary but can be useful if zettel tag
@@ -276,9 +277,14 @@ Tags                                                             *zettel-tags*
 
 
 Taglinks                                          *taglinks* *zettel-taglinks*
-  Taglinks are inserted using |ZettelInsertTagLink|.
+  Taglinks are maintained by keeping track of the files that contain taglinks.
 
-  References to these are are maintained in tagslink.txt at |g:zettel_root|.
+  When a taglink is inserted into a file using |ZettelInsertTagLink|, the file
+  name and it's last modified time are stored in ".taglinklocs.txt".
+
+  When any command that lists the taglinks is used a reference to all taglinks
+  are entered into a cache file i.e. ".taglinks.txt" at |g:zettel_root|.
+
   The only reason for maintaining these references is to capture the whole
   graph, i.e. all nodes (tags or taglinks) having incoming or outgoing edges.
   
@@ -292,3 +298,9 @@ Taglinks                                          *taglinks* *zettel-taglinks*
     {g:zettel_taglink_prefix} / {stub_path_to_tagfile} / {tagname}
 
   All taglink lines can be listed out using |ZettelListTagLinks|.
+
+  This cache file is updated only if a file containing a taglink has been
+  modified.
+
+  These cache files can be deleted. It will be regenerated when a taglink
+  listing command is invoked.
