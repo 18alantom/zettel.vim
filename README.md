@@ -21,16 +21,18 @@ note-taking-knowledge-building system you may have.
 Essentially what this plugin does is help you create hyperlinks and jump across
 files that you edit in vim.
 
-It does this by making use of vim's *tag* functionality (see `:h tag`).
+It does this by making use of vim's *tag* functionality (see `:h tag`) which is
+used to mark locations in a file.
 Generally you need a tool such as [ctags](https://en.wikipedia.org/wiki/Ctags)
 to generate a populated tagfile. This helps you create your own tags and
-tagfiles and jump around them using FZF.
+tagfiles and jump around the marked files using FZF.
 
 There are two concepts used here:
 1. **tag**: this marks a location in a file.
 2. **taglink**: this points to a *tag* from another location.
 
-*Tags* aren't visible in a file, *taglinks* are visible in a file.
+*Tags* aren't visible in a file; *taglinks* are visible in a file, by default
+they have the following format `z://[tagfile]/[tagname]`.
 
 ### Usage
 A simple way of using this plugin is:

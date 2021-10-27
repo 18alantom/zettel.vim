@@ -2,12 +2,13 @@
 " Author:   18alantom
 " License:  MIT License
 
+let s:plugin_name = "zettel.vim"
 
 " Initialize Global Variables
 if !exists("g:zettel_root")
   let s:home = getenv("HOME")
   if s:home == v:null
-    echoerr s:plugin_name . " : please set $HOME or g:zettel_root"
+    echoerr s:plugin_name . " : Please set $HOME or g:zettel_root."
   endif
 
   let g:zettel_root = s:home . "/.zettel"
@@ -30,10 +31,7 @@ if !exists("g:zettel_confirm_before_overwrite")
 endif
 
 
-
 " Tag Headers and Meta Data
-let s:plugin_name = "zettel.vim"
-
 let s:field_defaults = {
   \"togit" : g:zettel_default_field_togit
 \}
@@ -203,7 +201,7 @@ function s:GetCurrentPosition() abort
   let l:abs_file_path = expand("%:p")
 
   if l:abs_file_path == ""
-    echoerr s:plugin_name . " : current buffer is not saved to a file"
+    echoerr s:plugin_name . " : Current buffer has not been written to a file."
   else
     return [l:line, l:col, l:abs_file_path]
   endif
@@ -225,7 +223,7 @@ function s:InsertTagLine(tagname, tag_line, stub_path_to_tagfile) abort
     let l:parts = zettel#utils#getSplitLine(l:existing_taglines[0], "\t")
     let l:choice = 1
     if g:zettel_confirm_before_overwrite
-      let l:message = s:plugin_name .. " : tag '" ..
+      let l:message = s:plugin_name .. " : Tag '" ..
         \a:stub_path_to_tagfile .. "/" .. a:tagname .. "'" ..
         \" is already present \nfor '" .. l:parts[4] .. "' \n" ..
         \"overwrite tag?"
@@ -233,7 +231,7 @@ function s:InsertTagLine(tagname, tag_line, stub_path_to_tagfile) abort
     endif
 
     if l:choice == 2
-      echo s:plugin_name .. " : tag wasn't saved because of duplicate."
+      echo s:plugin_name .. " : Tag wasn't saved because of duplicate."
       return
     endif
 
@@ -479,13 +477,19 @@ function s:HandleTagLinkInsertion(tag_lines, sourceline) abort
   " Sink function for fzf, this will insert the tagline
   " insert tag into file
   " insert tag into taglink file
+  let l:abs_path_to_file = expand("%:p")
+  if l:abs_path_to_file == ""
+    echoerr s:plugin_name . " : Current buffer has not been written to a file."
+  endif
+
   let l:parts = s:GetTagLinePartsFromSourceLine(a:tag_lines, a:sourceline)
 	let l:tagname = l:parts[3]
 	let l:abs_path_to_tagfile = l:parts[2]
 	let l:stub_path_to_tagfile = zettel#utils#removeZettelRootFromPath(l:abs_path_to_tagfile)
 	let l:taglink = s:GetTagLink(l:stub_path_to_tagfile, l:tagname)
+
 	call s:InsertTagLink(l:taglink)
-  call zettel#taglinks#updateTagLinkLoc(expand("%:p"))
+  call zettel#taglinks#updateTagLinkLoc(l:abs_path_to_file)
 endfunction
 
 
@@ -560,7 +564,7 @@ function s:JumpFromTagLink(taglink) abort
 	let [l:stub_path_to_tagfile, l:tagname] = s:DestructureTagLink(a:taglink)
 	let l:tagline = s:GetTagLineFromTagFile(l:stub_path_to_tagfile, l:tagname)
   if len(l:tagline) == 0
-    echoerr s:plugin_name .. " : tag pointed to by '" .. a:taglink .. "' has been deleted."
+    echoerr s:plugin_name .. " : Tag pointed to by '" .. a:taglink .. "' has been deleted."
     return 2
   endif
 

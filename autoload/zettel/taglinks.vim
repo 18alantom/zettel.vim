@@ -2,34 +2,24 @@
 " Author:   18alantom
 " License:  MIT License
 
+" Taglinks are maintained by keeping references to
+" a list of files where taglinks have been inserted.
+"
+" These paths to these files are stored at the var
+" s:taglinklocs_path with their last modified date.
+"
+" When the taglinks (filtered or otherwise) are
+" required these files are scanned for taglinks and
+" written to g:zettel_taglinkcache_path.
+"
+" A file is scanned only if the cache file isn't present
+" or it's last modified timestamp was after the stored
+" last modified timestamp.
+
 
 let g:zettel_taglinkcache_path = g:zettel_root .. "/" .. ".taglinks.txt"
 let s:taglinklocs_path = g:zettel_root .. "/" .. ".taglinklocs.txt"
 let s:taglink_pattern = '\<' .. g:zettel_taglink_prefix .. '\%(\w\|[-/]\)\+'
-
-
-" call this on insertion
-function! zettel#taglinks#updateTagLinkLoc(abs_file_path) abort
-  " format: {abs_file_path} {TAB} {timestamp}
-  let l:last_modified = getftime(a:abs_file_path)
-  let l:update_line = join([a:abs_file_path, l:last_modified], "\t")
-
-  if !filereadable(s:taglinklocs_path)
-    call writefile([l:update_line], s:taglinklocs_path)
-    return
-  endif
-
-  let l:lines_to_write = []
-  for line in readfile(s:taglinklocs_path)
-    let l:parts = zettel#utils#getSplitLine(line, "\t")
-    if l:parts[0] == a:abs_file_path && str2nr(l:parts[1]) < l:last_modified
-      continue
-    else
-      call add(l:lines_to_write, line)
-    endif
-  endfor
-  call add(l:lines_to_write, l:update_line)
-endfunction
 
 
 function s:GetTagLinkLinesFromCache() abort
@@ -41,7 +31,7 @@ function s:GetTagLinkLinesFromCache() abort
 endfunction
 
 
-function s:UpdateTagLinkLocsAndGetListOfUpdatedFiles() abort
+function s:GetListOfUpdatedTagLocFiles() abort
   if !filereadable(s:taglinklocs_path)
     return [[], []]
   endif
@@ -49,13 +39,11 @@ function s:UpdateTagLinkLocsAndGetListOfUpdatedFiles() abort
   let l:list = readfile(s:taglinklocs_path)
   let l:list = map(l:list, {i,v -> zettel#utils#getSplitLine(v, "\t")})
 
+  let l:list_of_files = []
+  let l:list_of_dropped_files = []
   if !filereadable(g:zettel_taglinkcache_path)
     let l:list_of_files = map(l:list, {i,v -> v[0]})
   else
-    let l:list_of_files = []
-    let l:update_list = []
-    let l:list_of_dropped_files = []
-
     for item in l:list
       if !filereadable(item[0])
         call add(l:list_of_dropped_files, item[0])
@@ -70,10 +58,7 @@ function s:UpdateTagLinkLocsAndGetListOfUpdatedFiles() abort
         let l:line = join([item[0], l:last_modified], "\t")
         call add(l:list_of_files, item[0])
       endif
-      call add(l:update_list, l:line)
     endfor
-
-    call writefile(l:update_list, s:taglinklocs_path)
   endif
   return [l:list_of_files, l:list_of_dropped_files]
 endfunction
@@ -106,7 +91,7 @@ endfunction
 
 
 function s:UpdateCacheAndGetAllTagLinkLines() abort
-  let [l:files_to_check, l:files_to_drop] = s:UpdateTagLinkLocsAndGetListOfUpdatedFiles()
+  let [l:files_to_check, l:files_to_drop] = s:GetListOfUpdatedTagLocFiles()
   let l:cached_lines = s:GetTagLinkLinesFromCache()
   let l:updated_lines = []
 
@@ -134,26 +119,81 @@ function s:UpdateCacheAndGetAllTagLinkLines() abort
 endfunction
 
 
+function s:UpdateTagLinkLocs(taglinklocs)
+  let l:writeback_list = []
+  for line in readfile(s:taglinklocs_path)
+    let l:parts = zettel#utils#getSplitLine(line, "\t")
+    if index(a:taglinklocs, l:parts[0]) == -1
+      continue
+    endif
+    call add(l:writeback_list, line)
+  endfor
+  call writefile(l:writeback_list, s:taglinklocs_path)
+endfunction
+
+
 function! zettel#taglinks#getAllTagLinkLines(filters={}) abort
-  let l:taglink_lines =  s:UpdateCacheAndGetAllTagLinkLines()
-  if !len(a:filters)
-    return l:taglink_lines
-  endif
+  " Every time this function is called
+  " the taglinklocs file is cleaned i.e
+  " files that have not taglinks or files
+  " that have been deleted are removed
+  " from it.
+  let l:taglink_lines = s:UpdateCacheAndGetAllTagLinkLines()
+
+  let l:taglinklocs = []
   let l:filtered_taglink_lines = []
+
+  let l:has_filepath = has_key(a:filters, "filepath")
+  let l:has_taglink = has_key(a:filters, "taglink")
+
   for line in l:taglink_lines
     let l:parts = zettel#utils#getSplitLine(line, "\t")
+    if index(l:taglinklocs, l:parts[0]) == -1
+      call add(l:taglinklocs, l:parts[0])
+    endif
 
     " Filters
-    if has_key(a:filters, "filepath") && l:parts[0] != a:filters["filepath"]
+    if l:has_filepath && l:parts[0] != a:filters["filepath"]
       continue
     endif
 
-    if has_key(a:filters, "taglink") && l:parts[2] != a:filters["taglink"]
+    if l:has_taglink && l:parts[2] != a:filters["taglink"]
       continue
     endif
 
     call add(l:filtered_taglink_lines, line)
   endfor
   
+  call s:UpdateTagLinkLocs(l:taglinklocs)
   return l:filtered_taglink_lines
+endfunction
+
+
+function! zettel#taglinks#updateTagLinkLoc(abs_file_path) abort
+  " format: {abs_file_path} {TAB} {timestamp}
+  let l:last_modified = getftime(a:abs_file_path)
+  let l:update_line = join([a:abs_file_path, l:last_modified], "\t")
+
+  if !filereadable(s:taglinklocs_path)
+    call writefile([l:update_line], s:taglinklocs_path)
+    return
+  endif
+
+  let l:lines_to_write = []
+  let l:add_update_line = 1
+  for line in readfile(s:taglinklocs_path)
+    let l:parts = zettel#utils#getSplitLine(line, "\t")
+    if l:parts[0] == a:abs_file_path && str2nr(l:parts[1]) < l:last_modified
+      continue
+    elseif l:parts[0] == a:abs_file_path && str2nr(l:parts[1]) > l:last_modified
+      let l:add_update_line = 0
+    endif
+    call add(l:lines_to_write, line)
+  endfor
+
+  if l:add_update_line
+    call add(l:lines_to_write, l:update_line)
+  endif
+
+  call writefile(l:lines_to_write, s:taglinklocs_path)
 endfunction
