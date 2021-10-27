@@ -375,6 +375,18 @@ function s:MapGetSourceLine(line)
 endfunction
 
 
+function s:MapGetTagLinkSourceLine(tagline)
+  let l:parts = zettel#utils#getSplitLine(a:tagline, "\t")
+  let l:path = zettel#utils#getPaddedStr(l:parts[0], 62)
+  let [l:line, l:col] = split(l:parts[1], ":")
+  let l:line = zettel#utils#getPaddedStr(l:line, 5, 0)
+  let l:col = zettel#utils#getPaddedStr(l:col, 5, 0)
+  return join([l:path, l:line, l:col], repeat(" ", 2))
+endfunction
+
+
+
+
 function s:GetTagLinePartsFromSourceLine(tag_lines, sourceline) abort
   let l:delim = repeat(" ", 2)
 	let l:idx = zettel#utils#getSplitLine(a:sourceline, l:delim)[0]
@@ -493,7 +505,7 @@ function s:HandleTagLinkInsertion(tag_lines, sourceline) abort
 endfunction
 
 
-function s:RunFZFToDisplayTags(source, Sink, is_sinklist=0) abort
+function s:RunFZFToDisplayTags(source, Sink, is_sinklist=0, is_multi=0) abort
   call zettel#utils#throwErrorIfNoFZF()
   let l:preview_cmd = "cat -n {5}"
   if executable("bat")
@@ -502,11 +514,55 @@ function s:RunFZFToDisplayTags(source, Sink, is_sinklist=0) abort
 	let l:header = s:GetFZFSourceLineHeader()
 	let l:options = ['--no-sort',
     \'--nth=1,2,3',
-    \'--multi',
 		\'--preview="' .. l:preview_cmd .. '"',
 		\'--preview-window=up,+{4}',
 		\'--header="' .. l:header .. '"',
 		\'--prompt "Tag> "'
+	\]
+
+  if a:is_multi
+    call add(l:options, '--multi')
+  endif
+
+	let l:fzf_kwargs = {
+		\'source': a:source,
+		\'options' : join(l:options, " ")
+	\}
+
+	if a:is_sinklist
+		let l:fzf_kwargs['sink*'] = a:Sink
+	else
+		let l:fzf_kwargs['sink'] = a:Sink
+	endif
+
+  call fzf#run(fzf#wrap(l:fzf_kwargs))
+endfunction
+
+
+function s:GetFZFTagLinkSourceLineHeader()
+	let l:header_parts = [
+		\zettel#utils#getPaddedStr("filepath", 62),
+		\zettel#utils#getPaddedStr("line", 5, 0),
+		\zettel#utils#getPaddedStr("col", 5, 0),
+	\]
+	let l:delim = repeat(" ", 2)
+	return join(l:header_parts, l:delim)
+endfunction
+
+
+function s:RunFZFToDisplayTagLinks(source, Sink, is_sinklist=0) abort
+  call zettel#utils#throwErrorIfNoFZF()
+  let l:preview_cmd = "cat -n {1}"
+  if executable("bat")
+    let l:preview_cmd = "bat --color=always --highlight-line={2} {1}"
+  endif
+	let l:header = s:GetFZFTagLinkSourceLineHeader()
+	let l:options = ['--no-sort',
+    \'--nth=1,2,3',
+		\'--preview="' .. l:preview_cmd .. '"',
+		\'--preview-window=up,+{2}',
+		\'--header="' .. l:header .. '"',
+		\'--prompt "TagLink> "'
 	\]
 
 	let l:fzf_kwargs = {
@@ -524,10 +580,11 @@ function s:RunFZFToDisplayTags(source, Sink, is_sinklist=0) abort
 endfunction
 
 
-function s:HandleJumpToTaglink(taglink_line) abort
-	let l:parts = zettel#utils#getSplitLine(a:taglink_line, "\t")
+function s:HandleJumpToTaglink(taglink_sourceline) abort
+	let l:parts = zettel#utils#getSplitLine(a:taglink_sourceline, repeat(" ", 2))
 	let l:abs_path_to_file = l:parts[0]
-  let [l:line, l:col] = split(l:parts[1], ":")
+  let l:line = l:parts[1]
+  let l:col = l:parts[2]
   let l:loc_command = zettel#utils#getLocCommand(l:line, l:col)
 	call s:JumpToLocation(l:abs_path_to_file, l:loc_command)
 endfunction
@@ -584,7 +641,9 @@ endfunction
 function s:HandleTagSelectionToListTagLinks(sourceline) abort
   let l:taglink = s:GetTagLinkFromSourceLine(a:sourceline)
   let l:taglink_lines = zettel#taglinks#getAllTagLinkLines({"taglink":l:taglink})
-	call fzf#run(fzf#wrap({"source":l:taglink_lines, "sink": function("s:HandleJumpToTaglink")}))
+  let l:source = map(l:taglink_lines, "s:MapGetTagLinkSourceLine(v:val)")
+  let l:Sink = function("s:HandleJumpToTaglink")
+  call s:RunFZFToDisplayTagLinks(l:source, l:Sink, 0)
 endfunction
 
 
@@ -657,7 +716,7 @@ function! zettel#deleteTag() abort
   let l:tag_lines = zettel#utils#getAllTagLines()
   let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
   let l:Sink = function("s:HandleTagDeletion", [l:tag_lines])
-	call s:RunFZFToDisplayTags(l:source, l:Sink, 1)
+	call s:RunFZFToDisplayTags(l:source, l:Sink, 1, 1)
   call zettel#autoupdate#loadMarkerDicts()
 endfunction
 
@@ -665,7 +724,9 @@ endfunction
 function! zettel#listTagLinks() abort
   call zettel#autoupdate#updateFiles()
 	let l:taglink_lines = zettel#taglinks#getAllTagLinkLines()
-	call fzf#run(fzf#wrap({"source":l:taglink_lines, "sink": function("s:HandleJumpToTaglink")}))
+  let l:source = map(l:taglink_lines, "s:MapGetTagLinkSourceLine(v:val)")
+  let l:Sink = function("s:HandleJumpToTaglink")
+  call s:RunFZFToDisplayTagLinks(l:source, l:Sink, 0)
   call zettel#autoupdate#loadMarkerDicts()
 endfunction
 
