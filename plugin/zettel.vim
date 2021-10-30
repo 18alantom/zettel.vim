@@ -36,11 +36,29 @@ command! -nargs=* -complete=customlist,s:GetCompletionListTags ZettelListTagLink
 " Key Bindings
 if !exists("g:zettel_prevent_default_bindings")
   nnoremap <unique> <leader>zi :ZettelInsertTag<space>
-  nnoremap <unique> <leader>zj :ZettelListTags<space>
+  nnoremap <unique> <leader>zj :ZettelListTags<cr>
   nnoremap <unique> <leader>zl :ZettelInsertTagLink<cr>
   nnoremap <unique> <leader>zd :ZettelDeleteTag<cr>
+  nnoremap <unique> <leader>zm :emenu Zettel.
   nnoremap <silent> <C-]> :call <SID>OverloadCtrlSqBracket()<CR>
 endif
+
+
+" Menu
+menu Zettel.Insert.Tag :ZettelInsertTag<space>
+menu Zettel.Insert.TagLink :ZettelInsertTagLink<cr>
+
+menu Zettel.List.Tags.All :ZettelListTags<cr>
+menu Zettel.List.Tags.ByTagFile :ZettelListTags<space>
+menu Zettel.List.Tags.InThisFile :ZettelListTagsInThisFile<cr>
+
+menu Zettel.List.TagLinks.All :ZettelListTagLinks<cr>
+menu Zettel.List.TagLinks.InThisFile :ZettelListTagLinksInThisFile<cr>
+menu Zettel.List.TagLinks.ByTag :ZettelListTagLinksToATag<space>
+
+menu Zettel.Delete.Tags.DisplayAll :ZettelDeleteTag<cr>
+menu Zettel.Delete.Tags.DisplayByTagFile :ZettelDeleteTag<space>
+menu Zettel.Delete.TagFiles :ZettelDeleteTagFile<cr>
 
 
 " Internal Functions

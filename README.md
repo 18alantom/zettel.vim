@@ -66,12 +66,17 @@ section.
 | Binding   | What it does|
 |--------------|-------------|
 | `<leader>zi` |Calls [`ZettelInsertTag`](#zettelinserttag) which will insert a tag into a tag file. *|
-| `<leader>zj` | Calls [`ZettelListTags`](#zettellisttags), typing `<Tab>` will autocomplete with tagfile name. `<Enter>` opens the *FZF* window listing all the tags. Selected tag will open in the current window. *|
-| `<leader>zl` | Calls [`ZettelInsertTagLink`](#zettelinserttaglink) which will open an *FZF* listing all the tags. Selected tag will cause its taglink to be inserted at the cursor position.|
+| `<leader>zj` | Calls [`ZettelListTags`](#zettellisttags), which will open an *FZF* window listing all the tags. `<Enter>` will select a tag and will open it in the current window.|
+| `<leader>zl` | Calls [`ZettelInsertTagLink`](#zettelinserttaglink) which will open an *FZF* window listing all the tags. Selected tag will cause its taglink to be inserted at the cursor position.|
 | `<leader>zd` | Calls [`ZettelDeleteTag`](#zetteldeletetag) which will open a multiselect (using `<Tab>`) *FZF* window. Selected tags will be deleted forever. |
+| `<leader>zm` | Runs the `:emenu` command for Zettel's commands, `<Tab>` completion and cursor keys can be used for navigating the menu, `<enter>` will it.|
 | `<C-]>` | Jump to from taglink under cursor to a tag. If a taglink is not found then it falls back to default behaviour.|
 
-_*  may require args._
+_* requires args._
+
+_Note: The `<leader>` key by default is `\`, to change it to `<space>` you can add this `let mapleader = "\<Space>"` to your `.vimrc`. For more infor check `:h leader` or [this SO post](https://vi.stackexchange.com/questions/281/how-can-i-find-out-what-leader-is-set-to-and-is-it-possible-to-remap-leader)._
+
+### Prevent Default Bindings
 
 To not use the default key bindings add this line to your `.vimrc`:
 ```vim
@@ -190,7 +195,8 @@ To mark files that have to be added to a bare git repository. All tags in a file
 where `togit` is set to 1 will be added unless overridden by a tag level
 `togit`.
 
-*This hasn't been implemented yet.*
+*This hasn't been implemented yet. No plans to do so as of now, but seems useful
+so may add it in later.*
 
 ---
 

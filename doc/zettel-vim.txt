@@ -166,16 +166,19 @@ ZETTEL - KEY BINDINGS                                    *zettel-key-bindings*
 
 <leader>zi	    Calls |ZettelInsertTag| which will insert a tag into a tag file.
 
-<leader>zj	    Calls |ZettelListTags|, typing <Tab> will autocomplete with
-                tagfile name. <Enter> opens the FZF window listing all the
-                tags. Selected tag will open in the current window.
+<leader>zj	    Calls |ZettelListTags|, which will open an FZF window listing
+                all the tags. <Enter> will select a tag and will open it in
+                the current window.
 
-<leader>zl	    Calls |ZettelInsertTagLink| which will open an FZF listing all 
-                the tags. Selected tag will cause its taglink to be insertedat
-                the cursor position.
+<leader>zl	    Calls |ZettelInsertTagLink| which will open an FZF window
+                listing all the tags. Selected tag will cause its taglink to be
+                inserted at the cursor position.
 
 <leader>zd	    Calls |ZettelDeleteTag| which will open a multiselect FZF window
                 (using <Tab>). Selected tags will be deleted forever.
+
+<leader>zm      Runs the :emenu command for Zettel's commands, <Tab> completion
+                and cursor keys can be used for navigation.
 
 <C-]>	          Jump to tag from taglink under cursor to a tag. If a taglink is
                 not found on the current line then it falls back to the default
