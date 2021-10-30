@@ -27,17 +27,48 @@
 "     }
 "   }
 " }
+let s:prop_type_name = "Zettel"
+
+
+function s:AddPropType()
+  if len(prop_type_get(s:prop_type_name)) == 0
+    call prop_type_add(s:prop_type_name, {})
+  endif
+endfunction
  
+
+function s:UpdatePropId()
+  if !exists("b:zettel_prop_id")
+    let b:zettel_prop_id = 1
+  else
+    let b:zettel_prop_id += 1
+  endif
+endfunction
  
+
 function s:GetVimMarker(pos) abort
-  " TODO: Complete this using text-properties
-  return 0
+  call s:AddPropType()
+  call s:UpdatePropId()
+
+  let [l:line, l:col] = a:pos
+  call prop_add(l:line, l:col, {"id":b:zettel_prop_id, "type":s:prop_type_name})
+  return b:zettel_prop_id
 endfunction
 
 
 function s:GetPosFromVimMarker(marker) abort
-  " TODO: Complete this
-  return [0,0]
+  let l:options = {"id":a:marker, "type":s:prop_type_name}
+
+  let l:prop = prop_find(l:options, "f")
+  if len(l:prop) == 0
+    let l:prop = prop_find(l:options, "b")
+  endif
+
+  if len(l:prop) == 0
+    return []
+  endif
+
+  return [l:prop["lnum"], l:prop["col"]]
 endfunction
 
 
@@ -254,6 +285,10 @@ function! zettel#autoupdate#loadMarkerDicts()
   call s:LoadMarkerDict(l:abs_file_path)
 endfunction
 
+
 function! zettel#autoupdate#updateFiles()
   call s:UpdateFilesWithMarkerDict()
+  if exists("b:zettel_prop_id")
+    unlet b:zettel_prop_id
+  endif
 endfunction

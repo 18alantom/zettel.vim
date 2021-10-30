@@ -200,6 +200,4 @@ so may add it in later.*
 
 ---
 
-_**TODO**: use the `text-properties` API and add autoupdate to Vim._
-
 For more info type `:h zettel` in vim.
