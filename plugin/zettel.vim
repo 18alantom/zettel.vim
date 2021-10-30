@@ -20,14 +20,15 @@ command! ZettelDeleteTagFile call zettel#deleteTagFile()
 command! -nargs=* -complete=customlist,s:GetCompletionInsertTag ZettelInsertTag
   \ call zettel#insertTag(<f-args>)
 command! -nargs=* -complete=customlist,s:GetCompletionListTags ZettelListTags
-  \ call zettel#listTags(<f-args>)
+  \ call zettel#listTags(0, <f-args>)
 command! -nargs=* -complete=customlist,s:GetCompletionListTags ZettelDeleteTag
   \ call zettel#deleteTag(<f-args>)
-command! ZettelListTagsInThisFile call zettel#listTagsInThisFile()
+command! ZettelListTagsInThisFile call zettel#listTags(1)
 
 " Taglink Commands
 command! ZettelInsertTagLink call zettel#insertTagLink()
 command! ZettelListTagLinks call zettel#listTagLinks()
+command! ZettelListTagLinksInThisFile call zettel#listTagLinks(1)
 command! -nargs=* -complete=customlist,s:GetCompletionListTags ZettelListTagLinksToATag
   \ call zettel#listTagLinksToATag(<f-args>)
 

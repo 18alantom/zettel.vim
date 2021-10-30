@@ -768,9 +768,16 @@ function! zettel#insertTag(...) abort
 endfunction
 
 
-function! zettel#listTags(...) abort
+function! zettel#listTags(in_this_file, ...) abort
   call zettel#autoupdate#updateFiles()
-  let l:tag_lines = zettel#utils#getAllTagLines({"tagfile":a:000})
+
+  let l:filters = {}
+  if a:in_this_file
+    let l:filters = {"filepath": expand("%:p")}
+  endif
+  let l:filters["tagfile"] = a:000
+  
+  let l:tag_lines = zettel#utils#getAllTagLines(l:filters)
   let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
   let l:Sink = function("s:HandleTagJump", [l:tag_lines])
 	call s:RunFZFToDisplayTags(l:source, l:Sink, 0)
@@ -798,9 +805,15 @@ function! zettel#deleteTag(...) abort
 endfunction
 
 
-function! zettel#listTagLinks() abort
+function! zettel#listTagLinks(in_this_file=0) abort
   call zettel#autoupdate#updateFiles()
-	let l:taglink_lines = zettel#taglinks#getAllTagLinkLines()
+
+  let l:filters = {}
+  if a:in_this_file
+    let l:filters = {"filepath": expand("%:p")}
+  endif
+
+	let l:taglink_lines = zettel#taglinks#getAllTagLinkLines(l:filters)
   let l:source = map(l:taglink_lines, "s:MapGetTagLinkSourceLine(v:val)")
   let l:Sink = function("s:HandleJumpToTaglink")
   call s:RunFZFToDisplayTagLinks(l:source, l:Sink, 0)
@@ -845,17 +858,6 @@ function! zettel#tagLinkJump() abort
   endif
   call zettel#autoupdate#loadMarkerDicts()
   return s:JumpFromTagLink(l:selected_taglink)
-endfunction
-
-
-function! zettel#listTagsInThisFile() abort
-  call zettel#autoupdate#updateFiles()
-  let l:this_file = expand("%:p")
-  let l:tag_lines = zettel#utils#getAllTagLines({"filepath":l:this_file})
-  let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
-  let l:Sink = function("s:HandleTagJump", [l:tag_lines])
-	call s:RunFZFToDisplayTags(l:source, l:Sink, 0)
-  call zettel#autoupdate#loadMarkerDicts()
 endfunction
 
 

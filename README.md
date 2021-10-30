@@ -146,6 +146,12 @@ buffer. On selection by typing `<Enter>`, the file pointed to by the tag is
 opened in the current window.
 - **format** — `:ZettelListTagsInThisFile`
 
+#### `ZettelListTagLinksInThisFile`
+Opens an *FZF* window listing all the taglinks in the file related to the open
+buffer. On selection by typing `<Enter>`, the file containing the taglink is
+opened in the current window.
+- **format** — `:ZettelListTagLinksInThisFile`
+
 #### `ZettelListTagLinksToATag`
 Opens an *FZF* window listing all the tags, on selecting a tag a new *FZF* window
 opens up showing all the taglinks that link to the selected tag. Displayed tags
