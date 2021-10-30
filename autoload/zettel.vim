@@ -691,9 +691,9 @@ function! zettel#insertTag(...) abort
 endfunction
 
 
-function! zettel#listTags() abort
+function! zettel#listTags(...) abort
   call zettel#autoupdate#updateFiles()
-  let l:tag_lines = zettel#utils#getAllTagLines()
+  let l:tag_lines = zettel#utils#getAllTagLines({"tagfile":a:000})
   let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
   let l:Sink = function("s:HandleTagJump", [l:tag_lines])
 	call s:RunFZFToDisplayTags(l:source, l:Sink, 0)
@@ -782,9 +782,9 @@ function! zettel#listTagsInThisFile() abort
 endfunction
 
 
-function! zettel#listTagLinksToATag() abort
+function! zettel#listTagLinksToATag(...) abort
   call zettel#autoupdate#updateFiles()
-  let l:tag_lines = zettel#utils#getAllTagLines()
+  let l:tag_lines = zettel#utils#getAllTagLines({"tagfile":a:000})
   let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
   let l:Sink = function("s:HandleTagSelectionToListTagLinks")
 	call s:RunFZFToDisplayTags(l:source, l:Sink, 0)

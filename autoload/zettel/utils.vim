@@ -192,10 +192,21 @@ function! zettel#utils#getAllTagLines(filters={}) abort
   let l:tags = filter(l:tags, "filereadable(v:val)")
   let l:tags = zettel#utils#getUniqueItems(l:tags)
 
-  if has_key(a:filters, "tagfile")
-    let l:filter_path = zettel#utils#getScrubbedRelativePath(a:filters["tagfile"])
-    let l:filter_path = zettel#utils#getAbsolutePath(l:filter_path, 1)
-    let l:tags = filter(l:tags, {i,v -> v == l:filter_path})
+  if has_key(a:filters, "tagfile") && len(a:filters["tagfile"]) > 0
+    let l:filter_paths = a:filters["tagfile"]
+    if type(l:filter_paths) != type([])
+      let l:filter_paths = [a:filters["tagfile"]]
+    endif
+
+    " Map stopped working for somereason in nvim
+    let l:ff_tag_path = []
+    for path in l:filter_paths
+      let l:temp = zettel#utils#getScrubbedRelativePath(path)
+      let l:temp = zettel#utils#getAbsolutePath(l:temp, 1)
+      call add(l:ff_tag_path, l:temp)
+    endfor
+
+    let l:tags = filter(l:tags, {i,v -> index(l:ff_tag_path, v) != -1})
   endif
 
   let l:tag_lines = []

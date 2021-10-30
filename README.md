@@ -66,12 +66,12 @@ section.
 | Binding   | What it does|
 |--------------|-------------|
 | `<leader>zi` |Calls [`ZettelInsertTag`](#zettelinserttag) which will insert a tag into a tag file. *|
-| `<leader>zj` | Calls [`ZettelListTags`](#zettellisttags) which opens the *FZF* window listing all the tags. Selected tag will open in the current window.|
+| `<leader>zj` | Calls [`ZettelListTags`](#zettellisttags), typing `<Tab>` will autocomplete with tagfile name. `<Enter>` opens the *FZF* window listing all the tags. Selected tag will open in the current window. *|
 | `<leader>zl` | Calls [`ZettelInsertTagLink`](#zettelinserttaglink) which will open an *FZF* listing all the tags. Selected tag will cause its taglink to be inserted at the cursor position.|
 | `<leader>zd` | Calls [`ZettelDeleteTag`](#zetteldeletetag) which will open a multiselect (using `<Tab>`) *FZF* window. Selected tags will be deleted forever. |
 | `<C-]>` | Jump to from taglink under cursor to a tag. If a taglink is not found then it falls back to default behaviour.|
 
-_*  requires args._
+_*  may require args._
 
 To not use the default key bindings add this line to your `.vimrc`:
 ```vim
@@ -113,8 +113,11 @@ exist then it is created first.
 #### `ZettelListTags`
 Opens an *FZF* window listing all the tags across all the tag files. On
 selection by typing `<Enter>`, the file pointed to by the tag is opened in the
-current window.
-- **format** — `:ZettelListTags`
+current window. Displayed tags can be filtered by tagfiles by adding them after
+the command.
+- **format** — `:ZettelListTags [tagfile_1] [tagfile_2] [...]`
+- **example** — `:ZettelListTags recipes`
+    - All tags in the tagfile "recipes" is listed out in an *FZF* window.
 
 #### `ZettelInsertTagLink`
 Opens an *FZF* window listing all the tags across all the tag files. On
@@ -141,12 +144,13 @@ opened in the current window.
 
 #### `ZettelListTagLinksToATag`
 Opens an *FZF* window listing all the tags, on selecting a tag a new *FZF* window
-opens up showing all the taglinks that link to the selected tag.
-- **format** — `:ZettelListTagLinksToATag`
+opens up showing all the taglinks that link to the selected tag. Displayed tags
+can be filtered by tagfiles by adding them after the command.
 
-#### `ZettelCleanTagLinkFile`
-Deletes taglinks with dead references from the taglink file.
-- **format** — `:ZettelCleanTagLinkFile`
+- **format** — `:ZettelListTagLinksToATag [tagfile_1] [tagfile_2] [...]`
+- **example** — `:ZettelListTagLinksToATag recipes`
+    - All tags in the tagfile "recipes" is listed out in an *FZF* window on
+        selecting one of them all taglinks to that tag are displayed.
 
 ## Global Variables
 List of global variables used by `zettel.vim` that can be changed in the `.vimrc` to override default
