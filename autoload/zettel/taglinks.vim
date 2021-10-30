@@ -169,6 +169,12 @@ function! zettel#taglinks#getAllTagLinkLines(filters={}) abort
 endfunction
 
 
+function! zettel#taglinks#regenerateTagLinkCache() abort
+  call delete(g:zettel_taglinkcache_path)
+  call zettel#taglinks#getAllTagLinkLines()
+endfunction
+
+
 function! zettel#taglinks#updateTagLinkLoc(abs_file_path) abort
   " format: {abs_file_path} {TAB} {timestamp}
   let l:last_modified = getftime(a:abs_file_path)
@@ -185,7 +191,7 @@ function! zettel#taglinks#updateTagLinkLoc(abs_file_path) abort
     let l:parts = zettel#utils#getSplitLine(line, "\t")
     if l:parts[0] == a:abs_file_path && str2nr(l:parts[1]) < l:last_modified
       continue
-    elseif l:parts[0] == a:abs_file_path && str2nr(l:parts[1]) > l:last_modified
+    elseif l:parts[0] == a:abs_file_path && str2nr(l:parts[1]) >= l:last_modified
       let l:add_update_line = 0
     endif
     call add(l:lines_to_write, line)

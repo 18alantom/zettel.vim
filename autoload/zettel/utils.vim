@@ -164,6 +164,14 @@ function! zettel#utils#getRelativePath(path) abort
 endfunction
 
 
+function! zettel#utils#getTagFiles() abort
+  let l:tags = map(split(&tags, ","), "zettel#utils#getScrubbedRelativePath(v:val)")
+  let l:tags = map(l:tags, "zettel#utils#getAbsolutePath(v:val, 1)")
+  let l:tags = filter(l:tags, "filereadable(v:val)")
+  let l:tags = zettel#utils#getUniqueItems(l:tags)
+  return l:tags
+endfunction
+
 " Filters to get *lines:
 "
 "   tagline format:
@@ -187,10 +195,7 @@ endfunction
 function! zettel#utils#getAllTagLines(filters={}) abort
   " Will return list of all taglines
   " tagline will have tagpath prepended
-  let l:tags = map(split(&tags, ","), "zettel#utils#getScrubbedRelativePath(v:val)")
-  let l:tags = map(l:tags, "zettel#utils#getAbsolutePath(v:val, 1)")
-  let l:tags = filter(l:tags, "filereadable(v:val)")
-  let l:tags = zettel#utils#getUniqueItems(l:tags)
+  let l:tags = zettel#utils#getTagFiles()
 
   if has_key(a:filters, "tagfile") && len(a:filters["tagfile"]) > 0
     let l:filter_paths = a:filters["tagfile"]
@@ -240,29 +245,4 @@ function! zettel#utils#getAllTagLines(filters={}) abort
     endfor
   endfor
   return l:tag_lines
-endfunction
-
-
-function! zettel#utils#getAllTagLinkLines(filters={}) abort
-	let l:taglink_lines = readfile(g:zettel_tagslink_path)
-  if !len(a:filters)
-    return l:taglink_lines
-  endif
-  let l:filtered_taglink_lines = []
-  for line in l:taglink_lines
-    let l:parts = zettel#utils#getSplitLine(line, "\t")
-
-    " Filters
-    if has_key(a:filters, "filepath") && l:parts[0] != a:filters["filepath"]
-      continue
-    endif
-
-    if has_key(a:filters, "taglink") && l:parts[2] != a:filters["taglink"]
-      continue
-    endif
-
-    call add(l:filtered_taglink_lines, line)
-  endfor
-  
-  return l:filtered_taglink_lines
 endfunction

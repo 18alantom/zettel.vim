@@ -647,6 +647,83 @@ function s:HandleTagSelectionToListTagLinks(sourceline) abort
 endfunction
 
 
+function s:SetCountDictKey(count_dict, key)
+  if !has_key(a:count_dict, a:key)
+    let a:count_dict[a:key] = {"tags":0, "taglinks":0}
+  endif
+endfunction
+
+
+function s:GetTagFileDeletionSourceLine()
+  let l:tag_lines = zettel#utils#getAllTagLines()
+  let l:taglink_lines = zettel#taglinks#getAllTagLinkLines()
+  let l:tagfiles = zettel#utils#getTagFiles()
+
+  " Initialize count dict
+  let l:count_dict = {}
+  for tf in l:tagfiles
+    let l:tf = zettel#utils#removeZettelRootFromPath(tf)
+    call s:SetCountDictKey(l:count_dict, l:tf)
+  endfor
+
+  " Set the tag counts
+  for tl in l:tag_lines
+    let l:tf = zettel#utils#getSplitLine(tl, "\t")[2]
+    let l:tf = zettel#utils#removeZettelRootFromPath(l:tf)
+    call s:SetCountDictKey(l:count_dict, l:tf)
+    let l:count_dict[l:tf]["tags"] += 1
+  endfor
+
+  " Set the taglink counts
+  for tll in l:taglink_lines
+    let l:taglink = zettel#utils#getSplitLine(tll, "\t")[2]
+    let l:taglink = l:taglink[len(g:zettel_taglink_prefix):]
+    let l:tf = join(split(l:taglink, "/")[:-2], "/")
+    call s:SetCountDictKey(l:count_dict, l:tf)
+    let l:count_dict[l:tf]["taglinks"] += 1
+  endfor
+
+  let l:sourcelines = []
+  for tf in keys(l:count_dict)
+    let l:tc = zettel#utils#getPaddedStr(l:count_dict[tf]["tags"], 5, 0)
+    let l:tlc = zettel#utils#getPaddedStr(l:count_dict[tf]["taglinks"], 8, 0)
+    let l:tf = zettel#utils#getPaddedStr(tf, 48)
+    let l:sourceline = join([l:tf, l:tc, l:tlc], repeat(" ", 2))
+    call add(l:sourcelines, l:sourceline)
+  endfor
+  unlet l:count_dict
+  return l:sourcelines
+endfunction
+
+
+function s:HandleTagFileDeletion(sourcelines)
+  let l:tagfiles = map(a:sourcelines, {i,v -> zettel#utils#getSplitLine(v:val, repeat(' ', 2))[0]})
+  let l:tagfiles = map(l:tagfiles, "zettel#utils#getAbsolutePath(v:val, 1)")
+
+  let l:lines_to_writeback = []
+  for line in readfile(s:tagsloc_path)
+    if index(l:tagfiles, line) == -1
+      call add(l:lines_to_writeback, line)
+    endif
+  endfor
+
+  for tagfile in l:tagfiles
+    call delete(tagfile)
+  endfor
+
+  call writefile(l:lines_to_writeback, s:tagsloc_path)
+  call s:LoadTagsFromTagsloc()
+
+  " No need to regenerate TagLinkCache, taglinks pointing to the
+  " deleted tags are not removed (by design) the the cache will
+  " remain the same.
+  "
+  " Dead references will have to manually be removed.
+  "
+  " call zettel#taglinks#regenerateTagLinkCache()
+endfunction
+
+
 function s:IntializeAutoupdate() abort
   augroup zettel_autoupdate_tags
     " default fzf is vsplit, tab split, split, e
@@ -711,9 +788,9 @@ function! zettel#insertTagLink() abort
 endfunction
 
 
-function! zettel#deleteTag() abort
+function! zettel#deleteTag(...) abort
   call zettel#autoupdate#updateFiles()
-  let l:tag_lines = zettel#utils#getAllTagLines()
+  let l:tag_lines = zettel#utils#getAllTagLines({"tagfile":a:000})
   let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
   let l:Sink = function("s:HandleTagDeletion", [l:tag_lines])
 	call s:RunFZFToDisplayTags(l:source, l:Sink, 1, 1)
@@ -788,5 +865,31 @@ function! zettel#listTagLinksToATag(...) abort
   let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
   let l:Sink = function("s:HandleTagSelectionToListTagLinks")
 	call s:RunFZFToDisplayTags(l:source, l:Sink, 0)
+  call zettel#autoupdate#loadMarkerDicts()
+endfunction
+
+
+function! zettel#deleteTagFile() abort
+  call zettel#autoupdate#updateFiles()
+  let l:source = s:GetTagFileDeletionSourceLine()
+	let l:header_parts = [
+		\zettel#utils#getPaddedStr("tagfile", 48),
+		\zettel#utils#getPaddedStr("tags", 5, 0),
+		\zettel#utils#getPaddedStr("taglinks", 8, 0),
+	\]
+	let l:delim = repeat(" ", 2)
+	let l:header = join(l:header_parts, repeat(" ", 2))
+	let l:options = ['--no-sort --multi',
+    \'--nth=1',
+	  \'--header="' .. l:header .. '"',
+	  \'--prompt "TagFile> "'
+	\]
+
+	let l:fzf_kwargs = {
+	  \'source': l:source,
+	  \'options': join(l:options, " "),
+    \'sink*': function("s:HandleTagFileDeletion")
+	\}
+  call fzf#run(fzf#wrap(l:fzf_kwargs))
   call zettel#autoupdate#loadMarkerDicts()
 endfunction

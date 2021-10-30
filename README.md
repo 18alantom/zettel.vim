@@ -128,8 +128,12 @@ the cursor.
 #### `ZettelDeleteTag`
 Opens an *FZF* window listing all the tags across all the tag files. Multiple
 tags can be selected by typing `<Tab>` or a single on by typing `<Enter>` for
-deletion.
-- **format** — `:ZettelDeleteTag`
+deletion. Displayed tags can be filtered by tagfiles by adding them after
+the command.
+- **format** — `:ZettelDeleteTag [tagfile_1] [tagfile_2] [...]`
+- **example** — `:ZettelDeleteTag recipes`
+    - All tags in the tagfile "recipes" is listed out in an *FZF* window for
+      deletion.
 
 #### `ZettelListTagLinks`
 Opens an *FZF* window listing all the inserted taglinks. Selecting a taglink
@@ -146,11 +150,18 @@ opened in the current window.
 Opens an *FZF* window listing all the tags, on selecting a tag a new *FZF* window
 opens up showing all the taglinks that link to the selected tag. Displayed tags
 can be filtered by tagfiles by adding them after the command.
-
 - **format** — `:ZettelListTagLinksToATag [tagfile_1] [tagfile_2] [...]`
 - **example** — `:ZettelListTagLinksToATag recipes`
     - All tags in the tagfile "recipes" is listed out in an *FZF* window on
         selecting one of them all taglinks to that tag are displayed.
+
+#### `ZettelDeleteTagFile`
+Opens an *FZF* window with all the tag files, also showing the number of tags
+and taglinks linked to these tags in each file. Multiple tagfiles can be selected
+by typing `<Tab>`. Typing `<Enter>` will delete the selected tagfiles. Taglinks
+to these tags will have to be manually removed, this is by design to prevent
+editing user files.
+- **format** — `:ZettelDeleteTagFile`
 
 ## Global Variables
 List of global variables used by `zettel.vim` that can be changed in the `.vimrc` to override default

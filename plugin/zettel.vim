@@ -11,16 +11,18 @@ let g:loaded_zettel = 1
 call zettel#initialize()
 
 
-" Commands
+" Tagfile Commands
 command! -nargs=+ ZettelCreateNewTagFile
   \ call zettel#createNewTagFile(<f-args>)
+command! ZettelDeleteTagFile call zettel#deleteTagFile()
 
 " Tag Commands
 command! -nargs=* -complete=customlist,s:GetCompletionInsertTag ZettelInsertTag
   \ call zettel#insertTag(<f-args>)
 command! -nargs=* -complete=customlist,s:GetCompletionListTags ZettelListTags
   \ call zettel#listTags(<f-args>)
-command! ZettelDeleteTag call zettel#deleteTag()
+command! -nargs=* -complete=customlist,s:GetCompletionListTags ZettelDeleteTag
+  \ call zettel#deleteTag(<f-args>)
 command! ZettelListTagsInThisFile call zettel#listTagsInThisFile()
 
 " Taglink Commands
@@ -57,9 +59,17 @@ function s:GetCompletionInsertTag(arg_lead, cmd_line, cursor_pos)
 endfunction
 
 
+function s:MapReplaceBlankWithUnscoped(tag)
+  if len(a:tag) == 0
+    return g:zettel_unscoped_tagfile_name
+  endif
+  return a:tag
+endfunction
+
+
 function s:GetCompletionListTags(arg_lead, cmd_line, cursor_pos)
   let l:tags = s:GetCompletionInsertTag(a:arg_lead, a:cmd_line, a:cursor_pos)
-  let l:tags = filter(l:tags, "len(v:val)")
+  let l:tags = map(l:tags, "s:MapReplaceBlankWithUnscoped(v:val)")
   let l:tags = map(l:tags, {i,v -> v[:-2]})
   return l:tags
 endfunction

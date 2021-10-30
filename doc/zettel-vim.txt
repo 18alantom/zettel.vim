@@ -109,11 +109,13 @@ using <C-]> keybinding unless |g:zettel_prevent_default_bindings| is set to 1.
 *ZettelDeleteTag*
   Opens an FZF window listing all the tags across all the tag files. Multiple
   tags can be selected by typing <Tab> or a single on by typing <Enter> for
-  deletion.
+  deletion. Displayed tags can be filtered by tagfiles by adding them after
+  the command.
 
-  Deleting a tag also deletes all taglink lines from the taglink file. 
-
-  format: `ZettelDeleteTag`
+  format: `:ZettelDeleteTag [tagfile_1] [tagfile_2] [...]`
+  example: `:ZettelDeleteTags recipes`
+    All tags in the tagfile "recipes" is listed out in an *FZF* window for
+    deletion.
 
 
 *ZettelListTagLinks*
@@ -140,6 +142,15 @@ using <C-]> keybinding unless |g:zettel_prevent_default_bindings| is set to 1.
     All tags in the tagfile "recipes" is listed out in an *FZF* window on
     selecting one of them all taglinks to that tag are displayed.
 
+
+*ZettelDeleteTagFile*
+  Opens an FZF window with all the tag files, also showing the number of tags
+  and taglinks linked to these tags in each file. Multiple tagfiles can be selected
+  by typing <Tab>. Typing <Enter> will delete the selected tagfiles. Taglinks
+  to these tags will have to be manually removed, this is by design to prevent
+  editing user files.
+
+  format: `:ZettelDeleteTagFile`
 
 ==============================================================================
 ZETTEL - KEY BINDINGS                                    *zettel-key-bindings*
