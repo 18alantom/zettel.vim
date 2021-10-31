@@ -1,6 +1,6 @@
-# 🖇 zettel.vim
+# zettel.vim 🔗
 
-A plugin to help you maintain your
+A plugin to hyperlink files, facilitating  your
 [Zettelkasten](https://zettelkasten.de/introduction/) or
 [Antinet](https://daily.scottscheper.com/num/247/) or some other esoteric
 note-taking-knowledge-building system you may have.
@@ -10,6 +10,7 @@ note-taking-knowledge-building system you may have.
 - [Installation](#installation)
 - [Key Bindings](#keybindings)
 - [Commands](#commands)
+- [Menu](#menu)
 - [Global Variables](#global-variables)
 - [Field Values](#field-values)
 
@@ -173,6 +174,13 @@ by typing `<Tab>`. Typing `<Enter>` will delete the selected tagfiles. Taglinks
 to these tags will have to be manually removed, this is by design to prevent
 editing user files.
 - **format** — `:ZettelDeleteTagFile`
+
+## Menu
+
+You can use the menu to access plugin commands. The menu can be invoked by
+using `<leader>zm` and supports `<Tab>` completion.
+![Zettel Demo Menu](.github/zettel_demo_menu.gif)
+
 
 ## Global Variables
 List of global variables used by `zettel.vim` that can be changed in the `.vimrc` to override default
