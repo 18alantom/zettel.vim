@@ -97,7 +97,7 @@ function s:GetTagFieldHeaders(default_overrides) abort
   " arbitary field, values in the header but
   " they are uppercased.
   "
-  " default_overrides : 
+  " default_overrides :
   " - dictionary to override the tag field defaults
   " - example : { 'togit' : 0 }
   let l:tag_field_headers = []
@@ -119,7 +119,7 @@ endfunction
 function s:GetTagFilePath(stub_path_to_tagfile)
   " stub_path_to_tagfile
   " - just the suffix, example : 'folder0/folder1/tagfile'
-  " 
+  "
   " Return
   " l:abs_path_to_tagfile
   " - abs path to the tagfile, example: '/Users/blah/.zettel/folder0/folder1/tagfile'
@@ -727,8 +727,10 @@ endfunction
 function s:IntializeAutoupdate() abort
   augroup zettel_autoupdate_tags
     " default fzf is vsplit, tab split, split, e
-    autocmd BufEnter * call zettel#autoupdate#loadMarkerDicts()
-    autocmd BufLeave,BufUnload * call zettel#autoupdate#updateFiles()
+    " may fix error message with other file type than markdown
+    autocmd!
+    autocmd BufEnter *.md call zettel#autoupdate#loadMarkerDicts()
+    autocmd BufLeave,BufUnload *.md call zettel#autoupdate#updateFiles()
   augroup END
 endfunction
 
@@ -776,7 +778,7 @@ function! zettel#listTags(in_this_file, ...) abort
     let l:filters = {"filepath": expand("%:p")}
   endif
   let l:filters["tagfile"] = a:000
-  
+
   let l:tag_lines = zettel#utils#getAllTagLines(l:filters)
   let l:source = map(copy(l:tag_lines), "s:MapGetSourceLine(v:val)")
   let l:Sink = function("s:HandleTagJump", [l:tag_lines])
