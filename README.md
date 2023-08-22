@@ -2,7 +2,7 @@
 
 A plugin to hyperlink files, facilitating  your
 [Zettelkasten](https://zettelkasten.de/introduction/) or
-[Antinet](https://daily.scottscheper.com/num/247/) or some other esoteric
+Antinet or some other esoteric
 note-taking-knowledge-building system you may have.
 
 ## Index
